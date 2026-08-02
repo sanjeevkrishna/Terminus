@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<!-- Terminus — floating glass panels on a gradient canvas.
+     File path: terminus/templates/terminus.html -->
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Terminus</title>
+
+    <link rel="icon" href="{{ url_for('static', filename='img/terminus.ico') }}"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}"/>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Fira+Code:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap"/>
+</head>
+<body>
+
+<div id="terminus-app">
+
+    <!-- ===== Floating sidebar ===== -->
+    <aside id="terminus-sidebar" class="glass">
+        <div class="sidebar-brand">
+            <img class="brand-logo" src="{{ url_for('static', filename='img/terminus.png') }}" alt="Terminus"/>
+            <span class="brand-text">Terminus</span>
+            <button class="btn btn--icon brand-settings" id="settingsBtn" title="Settings">
+                <span class="material-icons">settings</span>
+            </button>
+        </div>
+        <div class="ts-top-actions">
+            <button class="btn btn--primary" id="newSessionBtn">
+                <span class="material-icons">add</span><span>New Session</span>
+            </button>
+        </div>
+        <hr class="ts-sep"/>
+        <div id="openList" class="ts-list"></div>
+        <div id="broadcastBar">
+            <input id="broadcastInput" type="text" placeholder="Send to all active…"/>
+            <button id="broadcastSend" title="Send to all active">
+                <span class="material-icons">send</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- ===== Floating terminal panel ===== -->
+    <section id="terminus-main" class="glass">
+        <div id="terminal-header">
+            <span class="circle idle" id="chipCircle"></span>
+            <span class="chip-name" id="chipTitle">No active session</span>
+            <span class="term-actions" id="termActions" style="display:none;">
+                <button class="btn btn--icon" id="downloadBtn" title="Download log">
+                    <span class="material-icons">download</span>
+                </button>
+                <button class="btn btn--icon btn--danger" id="closeBtn" title="Close session">
+                    <span class="material-icons">close</span>
+                </button>
+            </span>
+        </div>
+        <div id="terminals">
+            <div id="placeholder">
+                <span class="material-icons">dns</span>
+                <div class="ph-title">No active session</div>
+                <div>Click “New Session” to connect to a device</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- ===== New Session modal ===== -->
+<div class="modal-overlay" id="newSessionModal">
+    <div class="modal" style="width:600px;">
+        <div class="modal-header">
+            <div class="modal-title">New Session</div>
+            <button class="btn btn--icon" id="closeNewSessionModal">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <form id="newSessionForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>Devices</label>
+                    <textarea id="deviceHost" class="mono" rows="6" required
+                              style="height:200px; resize:none;"
+                              placeholder="router1.example.com&#10;10.0.0.5"></textarea>
+                </div>
+                <div class="form-row">
+                    <label>Connector</label>
+                    <select id="connectorSelect" required>
+                        <option value="">— Select connector —</option>
+                    </select>
+                    <span class="form-hint">
+                        No connectors? Add one under <strong>Settings → Connectors</strong>.
+                    </span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--ghost" id="cancelNewSession">Cancel</button>
+                <button type="submit" class="btn btn--primary">
+                    <span class="material-icons">bolt</span>Open
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===== Settings modal ===== -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+        <div class="settings-shell">
+
+            <!-- Column 1: nav -->
+            <nav class="settings-nav">
+                <div class="settings-nav-header">
+                    <span class="material-icons">settings</span><span>Settings</span>
+                </div>
+                <div class="settings-nav-item active" data-page="appearancePage" data-title="Appearance">
+                    <span class="material-icons">palette</span><span>Appearance</span>
+                </div>
+                <div class="settings-nav-item" data-page="connectorsPage" data-title="Connectors">
+                    <span class="material-icons">dns</span><span>Connectors</span>
+                </div>
+                <div class="settings-nav-item" data-page="filesPage" data-title="Files">
+                    <span class="material-icons">folder</span><span>Files</span>
+                </div>
+            </nav>
+
+            <!-- Column 2: header + page -->
+            <div class="settings-pane">
+                <div class="settings-pane-header">
+                    <span class="settings-pane-title" id="settingsPaneTitle">Appearance</span>
+                    <button class="btn btn--icon" id="closeSettingsModal" title="Close">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+
+                <div class="settings-pane-content">
+
+                    <!-- Appearance -->
+                    <div class="settings-page active" id="appearancePage">
+                        <div class="pane-body">
+                            <div class="appearance-label">Theme</div>
+                            <div class="theme-grid" id="themeGrid"></div>
+                            <div class="appearance-label">Terminal font</div>
+                            <select id="fontSelect"></select>
+                            <div class="font-preview" id="fontPreview"></div>
+                        </div>
+                    </div>
+
+                    <!-- Connectors -->
+                    <div class="settings-page" id="connectorsPage">
+                        <div class="pane-toolbar">
+                            <span style="flex:1;"></span>
+                            <button class="btn btn--ghost" id="connRefresh" title="Refresh">
+                                <span class="material-icons">refresh</span>Refresh
+                            </button>
+                            <button class="btn btn--primary" id="connAddBtn" title="Add connector">
+                                <span class="material-icons">add_link</span>Add
+                            </button>
+                        </div>
+                        <div class="pane-body">
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th class="col-type">Type</th>
+                                    <th class="col-actions">Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody id="connBody">
+                                <tr><td colspan="3" class="table-empty">No connectors yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Files -->
+                    <div class="settings-page" id="filesPage">
+                        <div class="pane-toolbar">
+                            <input id="logsSearch" type="text" placeholder="Filter logs…"/>
+                            <button class="btn btn--ghost" id="logsRefresh" title="Refresh">
+                                <span class="material-icons">refresh</span>Refresh
+                            </button>
+                            <button class="btn btn--danger" id="logsDeleteAll" title="Delete all shown">
+                                <span class="material-icons">delete_sweep</span>Delete All
+                            </button>
+                        </div>
+                        <div class="pane-body">
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Date Created</th>
+                                    <th class="col-actions">Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody id="logsBody">
+                                <tr><td colspan="3" class="table-empty">No logs yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Add/Edit Connector modal ===== -->
+<div class="modal-overlay" id="connModal">
+    <div class="modal" style="width:560px;">
+        <div class="modal-header">
+            <div class="modal-title" id="connModalTitle">Add Connector</div>
+            <button class="btn btn--icon" id="closeConnModal">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <form id="connForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>Connector name</label>
+                    <input id="connName" type="text" required placeholder="e.g. core-lab"/>
+                </div>
+
+                <!-- Device credentials -->
+                <fieldset class="form-group">
+                    <legend class="form-group-title">
+                        <span class="material-icons i-16">tv</span>Device credentials
+                    </legend>
+                    <div class="form-grid-2">
+                        <div class="form-row">
+                            <label>Username</label>
+                            <input id="connNetUser" type="text" autocomplete="off"/>
+                        </div>
+                        <div class="form-row">
+                            <label>Password</label>
+                            <input id="connNetPass" type="password" autocomplete="new-password"
+                                   placeholder="Blank = keep existing"/>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Jump host -->
+                <fieldset class="form-group">
+                    <legend class="form-group-title">
+                        <span class="material-icons i-16">alt_route</span>Jump host
+                        <span class="form-group-badge">optional</span>
+                    </legend>
+                    <div class="form-row">
+                        <label>Jump host IP / hostname</label>
+                        <input id="connJumpIp" type="text" autocomplete="off"/>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-row">
+                            <label>Username</label>
+                            <input id="connJumpUser" type="text" autocomplete="off"/>
+                        </div>
+                        <div class="form-row">
+                            <label>Password</label>
+                            <input id="connJumpPass" type="password" autocomplete="new-password"
+                                   placeholder="Blank = keep existing"/>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Test connection -->
+                <fieldset class="form-group">
+                    <legend class="form-group-title">
+                        <span class="material-icons i-16">wifi_tethering</span>Test connection
+                    </legend>
+                    <div class="form-row">
+                        <label>Test against host</label>
+                        <input id="connTestHost" type="text" autocomplete="off"
+                               placeholder="hostname/IP to test with these credentials"/>
+                    </div>
+                    <div class="test-row">
+                        <button type="button" class="btn btn--ghost" id="connTestBtn">
+                            <span class="material-icons">wifi_tethering</span>Test connection
+                        </button>
+                        <div class="test-result" id="connTestResult"></div>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--ghost" id="cancelConnModal">Cancel</button>
+                <button type="submit" class="btn btn--primary">
+                    <span class="material-icons">save</span>Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===== View Log modal ===== -->
+<div class="modal-overlay" id="viewLogModal">
+    <div class="modal" style="width:80vw; max-width:1100px;">
+        <div class="modal-header">
+            <div class="modal-title" id="viewLogTitle">Log</div>
+            <button class="btn btn--icon" id="closeViewLogModal">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <pre id="viewLogContent"
+                 style="max-height:70vh; overflow:auto; white-space:pre-wrap; margin:0;
+                        font-family:var(--font-mono); font-size:var(--font-size-sm);"></pre>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Toast ===== -->
+<div id="toast"></div>
+
+<!-- ===== Scripts ===== -->
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sessions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>

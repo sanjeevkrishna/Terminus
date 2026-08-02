@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# Terminus — .gitignore
+# ---------------------------------------------------------------------------
+
+# Byte-compiled / optimized / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+venv*/
+.venv/
+env/
+ENV/
+
+# Distribution / packaging / build (PyInstaller etc.)
+build/
+dist/
+*.egg-info/
+*.spec
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# ---------------------------------------------------------------------------
+# Terminus runtime data (lives in ~/terminus, but ignore any local copies)
+# ---------------------------------------------------------------------------
+terminus.db
+.key
+/logs/
+/webview/
+
+# Environment / secrets
+.env

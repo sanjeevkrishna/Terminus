@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# Terminus — runtime dependencies
+# ---------------------------------------------------------------------------
+
+# Web framework + realtime terminal transport
+Flask>=3.0
+Flask-SocketIO>=5.3
+
+# Encryption for stored connector passwords (Fernet)
+cryptography>=42.0
+
+# Desktop launcher only (native window). Not needed for web_launcher.py.
+pywebview>=5.0
+
+# ---------------------------------------------------------------------------
+# Internal dependency (not on PyPI) — install separately / via PYTHONPATH:
+#   netcore   -> provides GenericHandler used by terminus/services.py
+# ---------------------------------------------------------------------------
