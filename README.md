@@ -32,20 +32,20 @@ themeable UI.
 
 ```
 Terminus/
-├── terminus/                 # application package
-│   ├── __init__.py           # package metadata (__version__)
-│   ├── app.py                # runtime config + application factory (create_app)
-│   ├── routes.py             # HTTP views + route registration
-│   ├── sockets.py            # Socket.IO handlers, SSH lifecycle, session state
-│   ├── services.py           # stateless SSH connection helpers (netcore)
-│   ├── credentials.py        # SQLite connector store + Fernet encryption
+├── terminus/
+│   ├── __init__.py
+│   ├── app.py
+│   ├── routes.py
+│   ├── sockets.py
+│   ├── services.py
+│   ├── credentials.py
 │   ├── templates/
 │   │   └── terminus.html
 │   └── static/
 │       ├── css/common.css
 │       ├── js/{core,sessions,settings}.js
-│       ├── fonts/            # GoogleSansCode.woff2, MaterialSymbolsRounded.woff2
-│       └── img/              # brand.ico, brand.png
+│       ├── fonts/
+│       └── img/
 ├── web_launcher.py           # run in a browser
 ├── desktop_launcher.py       # run as a native window (pywebview)
 ├── requirements.txt
