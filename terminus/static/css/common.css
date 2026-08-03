@@ -316,10 +316,17 @@ textarea.mono { font-family: var(--font-mono); line-height: 1.55; resize: vertic
 #terminals > div[data-id] { position: absolute; inset: 12px 14px; display: none; }
 #terminals > div[data-id].shown { display: block; }
 #terminals > div[data-id] .xterm,
-#terminals > div[data-id] .xterm .xterm-viewport,
 #terminals > div[data-id] .xterm .xterm-screen {
-    width: 100%; height: 100%;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
+    background: transparent !important;
+}
+
+#terminals > div[data-id] .xterm .xterm-viewport {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
     background: transparent !important;
 }
 
@@ -442,28 +449,30 @@ textarea.mono { font-family: var(--font-mono); line-height: 1.55; resize: vertic
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 8px;
     background: var(--surface-2);
     border-right: 1px solid var(--border-color);
 }
+
 .settings-nav-header {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 42px;
+    min-height: 50px;
     flex-shrink: 0;
-    padding: 10px;
+    padding: 6px 12px;
+
+    font-weight: 600;
     font-size: var(--font-size-sm);
-    font-weight: 700;
     color: var(--text-muted);
     border-bottom: 1px solid var(--border-color);
 }
+
+.settings-nav-content { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 6px;}
 .settings-nav-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 11px;
+    padding: 9px 6px;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     font-weight: 600;
@@ -481,7 +490,7 @@ textarea.mono { font-family: var(--font-mono); line-height: 1.55; resize: vertic
     justify-content: space-between;
     min-height: 50px;
     flex-shrink: 0;
-    padding: 10px;
+    padding: 6px 12px;
     border-bottom: 1px solid var(--border-color);
 }
 .settings-pane-title { font-size: var(--font-size-sm); font-weight: 700; color: var(--text-muted); }

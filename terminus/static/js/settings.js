@@ -28,8 +28,14 @@
                 opt.textContent = name;
                 selectEl.appendChild(opt);
             });
-        } catch (_) { /* ignore */ }
+        } catch (_) { /* ignore */
+        }
     }
+
+    $("openShellBtn").onclick = () => {
+        TW.closeModal("newSessionModal");
+        TW.openShell();
+    };
 
     $("newSessionBtn").onclick = async () => {
         await loadConnectorsInto($("connectorSelect"));
@@ -231,9 +237,13 @@
 
     function renderConnectors() {
         const body = $("connBody");
-        const names = Object.keys(connectors);
+        const names = filteredConnectors();
         if (!names.length) {
-            body.innerHTML = `<tr><td colspan="3" class="table-empty">No connectors yet</td></tr>`;
+            const q = $("connSearch").value.trim();
+            body.innerHTML =
+                `<tr><td colspan="3" class="table-empty">${
+                    q ? "No matching connectors" : "No connectors yet"
+                }</td></tr>`;
             return;
         }
         body.innerHTML = "";
@@ -267,7 +277,9 @@
     ];
 
     function resetConnForm() {
-        CONN_FIELDS.forEach(id => { $(id).value = ""; });
+        CONN_FIELDS.forEach(id => {
+            $(id).value = "";
+        });
         $("connName").disabled = false;
         hideConnTestResult();
     }
@@ -308,6 +320,14 @@
         };
     }
 
+    function filteredConnectors() {
+        const q = $("connSearch").value.toLowerCase().trim();
+        return Object.keys(connectors).filter(name =>
+            name.toLowerCase().includes(q)
+        );
+    }
+
+    $("connSearch").addEventListener("input", renderConnectors);
     $("connAddBtn").onclick = openAddConnector;
     $("connRefresh").onclick = loadConnectors;
     $("closeConnModal").onclick = () => TW.closeModal("connModal");

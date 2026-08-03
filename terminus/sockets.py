@@ -17,7 +17,8 @@ from datetime import datetime
 from flask import request
 from flask_socketio import join_room
 
-from .app import LOG_DIR
+from .app import LOG_DIR, LOCAL_SHELL, LOCAL_SHELL_LABEL
+from .shell import open_local_shell
 from .credentials import get_store
 from .services import connector_to_params, open_terminus
 
@@ -147,6 +148,36 @@ def register_socket_handlers(socketio):
             emit_status(session_id, f"\n*** Connection failed: {exc} ***\n")
             emit_ended(session_id)
 
+    def do_open_shell(session_id, sid):
+        os.makedirs(LOG_DIR, exist_ok=True)
+        ts = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
+        logpath = os.path.join(LOG_DIR, f"local-shell_{ts}.log")
+        try:
+            conn, channel, base_prompt, tee = open_local_shell(
+                LOCAL_SHELL, LOCAL_SHELL_LABEL, logfile=logpath, tag=session_id
+            )
+            download_name = f"local-shell_{datetime.now():%Y-%m-%d_%H.%M}.log"
+            _state["sessions"][session_id] = {
+                "conn": conn, "channel": channel, "sid": sid,
+                "logpath": logpath, "log_dir": LOG_DIR,
+                "tee": tee, "log_started": True,  # local shells: log from the start
+            }
+            _state["logs"][session_id] = {
+                "path": logpath, "download_name": download_name,
+            }
+            socketio.emit("session_ready", {
+                "session_id": session_id,
+                "base_prompt": base_prompt,
+                "device_type": "local-shell",
+                "logname": download_name,
+            }, namespace=NS, to=session_id)
+            emit_status(session_id, f"*** {base_prompt} ***\n")
+            socketio.start_background_task(read_output, session_id, channel)
+        except Exception as exc:
+            logger.info("Local shell failed for %s: %s", session_id, exc)
+            emit_status(session_id, f"\n*** Local shell failed: {exc} ***\n")
+            emit_ended(session_id)
+
     def _tee_write(sess, tee, data):
         """Strip ANSI, drop leading blank output on first write, tee to disk."""
         clean = _strip_ansi_bytes(data)
@@ -226,6 +257,14 @@ def register_socket_handlers(socketio):
         socketio.start_background_task(
             do_connect, session_id, request.sid, params, LOG_DIR
         )
+
+    @socketio.on("open_shell", namespace=NS)
+    def on_open_shell(data):
+        session_id = data["session_id"]
+        if session_id in _state["sessions"]:
+            emit_status(session_id, "\n*** Session already active ***\n")
+            return
+        socketio.start_background_task(do_open_shell, session_id, request.sid)
 
     @socketio.on("input", namespace=NS)
     def on_input(data):

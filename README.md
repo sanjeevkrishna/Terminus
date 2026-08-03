@@ -3,8 +3,8 @@
 A local, desktop-style **web SSH terminal** for network devices. Terminus runs
 a small Flask + Socket.IO server on your machine and gives you a modern,
 multi-session terminal — in a browser tab or a native desktop window — with
-per-session logging, encrypted connector storage, live command broadcast, and a
-themeable UI.
+per-session logging, encrypted connector storage, live command broadcast, local
+shell access, and a themeable UI.
 
 > Single-user, localhost-only by design. Terminus is **not** meant to be hosted
 > on a shared or public server.
@@ -18,13 +18,16 @@ themeable UI.
 - **Connectors** — save reusable credential profiles (device + optional jump
   host). Passwords are **encrypted at rest**.
 - **Test connection** — verify a connector against a host before using it.
-- **Command broadcast** — type once, send to every active session.
-- **Session logging** — every session is teed to a clean, ANSI-stripped `.log`
-  file you can view, download, or delete in-app.
+- **Local shell** — open a native shell (PowerShell on Windows, your `$SHELL`
+  on Linux/macOS) right alongside your SSH sessions.
+- **Command broadcast** — type once, send to every active SSH session.
+- **Session logging** — every session (SSH or local shell) is teed to a clean,
+  ANSI-stripped `.log` file you can view, download, or delete in-app.
 - **Appearance** — light/dark themes on a gradient canvas, plus a selectable
   terminal font (Google Sans Code bundled; JetBrains Mono, Fira Code, IBM Plex
   Mono, Source Code Pro from Google Fonts).
-- **Two ways to run** — a browser launcher and a native desktop-window launcher.
+- **Three ways to run** — a development launcher, a browser launcher, and a
+  native desktop-window launcher.
 
 ---
 
@@ -34,11 +37,12 @@ themeable UI.
 Terminus/
 ├── terminus/
 │   ├── __init__.py
-│   ├── app.py
-│   ├── routes.py
-│   ├── sockets.py
-│   ├── services.py
-│   ├── credentials.py
+│   ├── app.py                # runtime config + application factory (create_app)
+│   ├── routes.py             # HTTP views + route registration
+│   ├── sockets.py            # Socket.IO handlers, session lifecycle, state
+│   ├── services.py           # stateless SSH connection helpers (netcore)
+│   ├── shell.py        # local PTY adapter (pywinpty / stdlib pty)
+│   ├── credentials.py        # SQLite connector store + Fernet encryption
 │   ├── templates/
 │   │   └── terminus.html
 │   └── static/
@@ -46,6 +50,7 @@ Terminus/
 │       ├── js/{core,sessions,settings}.js
 │       ├── fonts/
 │       └── img/
+├── dev_launcher.py           # development (no caching, reloader, debug)
 ├── web_launcher.py           # run in a browser
 ├── desktop_launcher.py       # run as a native window (pywebview)
 ├── requirements.txt
@@ -58,11 +63,12 @@ Terminus/
 Terminus stores everything under **`~/terminus`** (your home directory), never
 inside the app folder:
 
-| Path                         | Purpose                                   |
-| ---------------------------- | ----------------------------------------- |
-| `~/terminus/terminus.db`     | SQLite store of connectors (encrypted)    |
-| `~/terminus/logs/`           | Per-session `.log` files                  |
-| `~/terminus/.key`            | Persistent encryption key (auto-generated)|
+| Path                         | Purpose                                    |
+| ---------------------------- | ------------------------------------------ |
+| `~/terminus/terminus.db`     | SQLite store of connectors (encrypted)     |
+| `~/terminus/logs/`           | Per-session `.log` files                   |
+| `~/terminus/.key`            | Persistent encryption key (auto-generated) |
+| `~/terminus/webview/`        | Desktop window storage (theme, cache)      |
 
 The `.key` file is created on first run and reused thereafter, so encrypted
 connector passwords remain readable across restarts. **Back it up** if you back
@@ -77,7 +83,9 @@ just re-enter them).
 - The internal **`netcore`** SSH library (provides `GenericHandler`)
 - Packages in `requirements.txt`:
   - `Flask`, `Flask-SocketIO`, `cryptography`
-  - `pywebview` (only needed for the desktop launcher)
+  - `pywebview` (desktop launcher only)
+  - `pywinpty` (**Windows only** — local shell support; installed
+    automatically via a platform marker)
 
 ---
 
@@ -95,12 +103,25 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Make sure `netcore` is importable in the same environment (installed via pip or
+on your `PYTHONPATH`).
+
 ---
 
 ## Running
 
 Always run from the **project root** (the folder containing `terminus/`) so the
 package imports correctly.
+
+### Development
+
+```bash
+python dev_launcher.py
+```
+
+Runs the browser server with **caching fully disabled** (no-cache headers,
+template auto-reload) and the Werkzeug reloader on. Use this while iterating on
+HTML/CSS/JS so edits show on every reload.
 
 ### Browser
 
@@ -109,7 +130,6 @@ python web_launcher.py
 ```
 
 Starts the server on `http://127.0.0.1:5001` and opens your default browser.
-Code changes auto-reload (Werkzeug reloader enabled).
 
 ### Desktop window
 
@@ -163,22 +183,30 @@ Open **Settings → Connectors → Add**:
 Click **New Session**, choose a connector, and enter one or more
 hostnames/IPs (one per line). Each opens as its own terminal.
 
+To open a **local shell** instead, click **Local Shell** at the bottom-left of
+the New Session dialog. It spawns your machine's shell (PowerShell on Windows,
+`$SHELL` on Unix) as a fully interactive terminal.
+
 ### 3. Work
 
 - **Copy** — select text (auto-copies). **Paste** — right-click.
-- **Broadcast** — type a command in the sidebar's *Send to all active…* box.
+- **Broadcast** — type a command in the sidebar's *Send to all active…* box
+  (sent to active SSH sessions).
+- **Scroll** — mouse wheel or the terminal scrollbar (buffered scrollback).
 - **Download / close** — hover a session row, or use the terminal header
   buttons for the active session.
 
 ### 4. Manage logs
 
-**Settings → Files** lists every session log. Filter, view inline, download, or
-delete. Logs tied to an active session are protected from deletion.
+**Settings → Files** lists every session log (SSH and local shell). Filter,
+view inline, download, or delete. Logs tied to an active session are protected
+from deletion.
 
 ### 5. Appearance
 
 **Settings → Appearance** — pick a theme (Light / Dark) and a terminal font.
-Choices persist across restarts (stored in the browser's `localStorage`).
+Choices persist across restarts (stored in the browser / webview
+`localStorage`).
 
 ---
 
@@ -186,40 +214,57 @@ Choices persist across restarts (stored in the browser's `localStorage`).
 
 Runtime settings live at the top of `terminus/app.py`:
 
-| Setting     | Default          | Description                          |
-| ----------- | ---------------- | ------------------------------------ |
-| `HOST`      | `127.0.0.1`      | Bind address (keep localhost)        |
-| `PORT`      | `5001`           | Preferred port                       |
-| `BASE_DIR`  | `~/terminus`     | Root for DB, logs, and key           |
+| Setting             | Default           | Description                              |
+| ------------------- |-------------------| ---------------------------------------- |
+| `HOST`              | `127.0.0.1`       | Bind address (keep localhost)            |
+| `PORT`              | `5001`            | Preferred port                           |
+| `BASE_DIR`          | `~/terminus`      | Root for DB, logs, key, and webview data |
+| `LOCAL_SHELL`       | `$COMSPEC` / `$SHELL` | Command used for the Local Shell feature |
+| `LOCAL_SHELL_LABEL` | shell basename    | Label shown for local shell sessions     |
 
-The desktop launcher automatically falls back to a free port if `PORT` is in
-use.
+On Windows, set `LOCAL_SHELL` to `cmd.exe` or `pwsh.exe` if you prefer. The
+desktop launcher automatically falls back to a free port if `PORT` is in use.
 
 ---
 
 ## Architecture notes
 
 - **App factory** — `terminus.app.create_app()` returns `(app, socketio)` in
-  **threading** mode (no eventlet/gevent, no monkey-patching). Both launchers
+  **threading** mode (no eventlet/gevent, no monkey-patching). All launchers
   call it.
+- **Unified channel interface** — SSH sessions and local shells share the same
+  socket read/input/resize/logging pipeline. `shell.py` wraps the
+  platform PTY (pywinpty on Windows, stdlib `pty` on POSIX) to expose the same
+  channel interface the SSH layer uses.
 - **State** — active sessions and log metadata live in a process-wide dict in
   `sockets.py` (single process, single user — no external store needed).
 - **Namespace** — all Socket.IO traffic is under `/terminus`.
 - **Security posture** — no authentication by design; Terminus binds to
-  localhost and is intended to run like a personal desktop tool. Connector
-  passwords are encrypted with Fernet, keyed off `~/terminus/.key`.
+  localhost and runs like a personal desktop tool. The Local Shell feature can
+  run arbitrary local commands — acceptable for a single-user localhost app.
+  Connector passwords are encrypted with Fernet, keyed off `~/terminus/.key`.
 
 ---
 
 ## Troubleshooting
 
-**"Address already in use" (web launcher).**
+**"Address already in use" (web/dev launcher).**
 Something is already on port 5001. Stop it, or change `PORT` in
 `terminus/app.py`. (The desktop launcher auto-picks a free port.)
+
+**HTML/CSS/JS edits don't show.**
+Use `dev_launcher.py` while developing — it disables all caching. In the
+browser, a hard reload (Ctrl+F5) also busts the cache. The desktop window
+caches assets in `~/terminus/webview`.
 
 **Desktop window shows the Python icon.**
 Ensure `terminus/static/img/brand.ico` exists. When run via `python` the icon is
 applied at runtime; give it a second or two after the window appears.
+
+**Local Shell fails to open (Windows).**
+Install `pywinpty` (`pip install pywinpty`, or reinstall from
+`requirements.txt`). On Unix no extra package is needed — the stdlib `pty`
+module is used.
 
 **Terminal font doesn't change.**
 Confirm the font is available. Bundled: *Google Sans Code*. The others load from

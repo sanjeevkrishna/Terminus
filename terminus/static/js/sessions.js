@@ -127,10 +127,58 @@
 
     TW.openSession = openSession;
 
+    function openShell(activateNow = true) {
+        const session_id = TW.uid();
+        const wrap = document.createElement("div");
+        wrap.dataset.id = session_id;
+        $("terminals").appendChild(wrap);
+
+        const term = new Terminal(TW.termOptions());
+        const fit = new FitAddon.FitAddon();
+        term.loadAddon(fit);
+        term.open(wrap);
+        term.onData((data) => socket.emit("input", {session_id, data}));
+
+        term.onSelectionChange(() => {
+            const sel = term.getSelection();
+            if (sel) TW.copyToClipboard(sel);
+        });
+        wrap.addEventListener("contextmenu", async (e) => {
+            e.preventDefault();
+            const text = await TW.readFromClipboard();
+            if (text) socket.emit("input", {session_id, data: text});
+        });
+
+        const ro = new ResizeObserver(() => TW.safeFit(session_id));
+        ro.observe(wrap);
+
+        open[session_id] = {
+            term, fit, wrap, name: "Local Shell", status: "connecting",
+            connector: null, hostname: null, isShell: true, ro, logname: null,
+        };
+
+        TW.ensureTermFont().then(() => {
+            const o = open[session_id];
+            if (o) {
+                o.term.options.fontFamily = TW.currentFontStack();
+                TW.safeFit(session_id);
+            }
+        });
+
+        socket.emit("join", {session_id});
+        socket.emit("open_shell", {session_id});
+        renderOpen();
+        saveOpenState();
+        if (activateNow) activate(session_id);
+        return session_id;
+    }
+
+    TW.openShell = openShell;
+
     function saveOpenState() {
-        const list = Object.values(open).map(o => ({
-            connector: o.connector, hostname: o.hostname,
-        }));
+        const list = Object.values(open)
+            .filter(o => !o.isShell)   // shells aren't restorable
+            .map(o => ({connector: o.connector, hostname: o.hostname}));
         if (list.length) {
             sessionStorage.setItem(TW.RESTORE_KEY, JSON.stringify(list));
         } else {
@@ -210,7 +258,10 @@
         sessionStorage.removeItem(TW.RESTORE_KEY);
 
         let list = [];
-        try { list = JSON.parse(raw); } catch (_) { /* ignore */ }
+        try {
+            list = JSON.parse(raw);
+        } catch (_) { /* ignore */
+        }
         if (!list.length) return;
 
         const summary = list.map(s => `• ${s.hostname} (${s.connector})`).join("\n");
@@ -249,7 +300,9 @@
         bInput.focus();
         if (sent === 0) {
             bInput.placeholder = "No active sessions";
-            setTimeout(() => { bInput.placeholder = "Send to all active…"; }, 1500);
+            setTimeout(() => {
+                bInput.placeholder = "Send to all active…";
+            }, 1500);
         }
     }
 

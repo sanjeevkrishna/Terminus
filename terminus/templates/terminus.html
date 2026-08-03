@@ -28,7 +28,7 @@
         </div>
         <div class="ts-top-actions">
             <button class="btn btn--primary" id="newSessionBtn">
-                <span class="material-icons">add</span><span>New Session</span>
+                <span class="material-icons">add_ad</span><span>New Session</span>
             </button>
         </div>
         <hr class="ts-sep"/>
@@ -92,11 +92,16 @@
                     </span>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn--ghost" id="cancelNewSession">Cancel</button>
-                <button type="submit" class="btn btn--primary">
-                    <span class="material-icons">bolt</span>Open
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button type="button" class="btn btn--ghost" id="openShellBtn" title="Open a local shell">
+                    Local Shell
                 </button>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="btn btn--ghost" id="cancelNewSession">Cancel</button>
+                    <button type="submit" class="btn btn--primary">
+                        <span class="material-icons">bolt</span>Open
+                    </button>
+                </div>
             </div>
         </form>
     </div>
@@ -112,14 +117,16 @@
                 <div class="settings-nav-header">
                     <span class="material-icons">settings</span><span>Settings</span>
                 </div>
-                <div class="settings-nav-item active" data-page="appearancePage" data-title="Appearance">
-                    <span class="material-icons">palette</span><span>Appearance</span>
-                </div>
-                <div class="settings-nav-item" data-page="connectorsPage" data-title="Connectors">
-                    <span class="material-icons">dns</span><span>Connectors</span>
-                </div>
-                <div class="settings-nav-item" data-page="filesPage" data-title="Files">
-                    <span class="material-icons">folder</span><span>Files</span>
+                <div class="settings-nav-content">
+                    <div class="settings-nav-item active" data-page="appearancePage" data-title="Appearance">
+                        <span class="material-icons">palette</span><span>Appearance</span>
+                    </div>
+                    <div class="settings-nav-item" data-page="connectorsPage" data-title="Connectors">
+                        <span class="material-icons">dns</span><span>Connectors</span>
+                    </div>
+                    <div class="settings-nav-item" data-page="filesPage" data-title="Files">
+                        <span class="material-icons">folder</span><span>Files</span>
+                    </div>
                 </div>
             </nav>
 
@@ -148,7 +155,7 @@
                     <!-- Connectors -->
                     <div class="settings-page" id="connectorsPage">
                         <div class="pane-toolbar">
-                            <span style="flex:1;"></span>
+                            <input id="connSearch" type="text" placeholder="Filter connectors…"/>
                             <button class="btn btn--ghost" id="connRefresh" title="Refresh">
                                 <span class="material-icons">refresh</span>Refresh
                             </button>
@@ -166,7 +173,9 @@
                                 </tr>
                                 </thead>
                                 <tbody id="connBody">
-                                <tr><td colspan="3" class="table-empty">No connectors yet</td></tr>
+                                <tr>
+                                    <td colspan="3" class="table-empty">No connectors yet</td>
+                                </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -193,12 +202,13 @@
                                 </tr>
                                 </thead>
                                 <tbody id="logsBody">
-                                <tr><td colspan="3" class="table-empty">No logs yet</td></tr>
+                                <tr>
+                                    <td colspan="3" class="table-empty">No logs yet</td>
+                                </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>

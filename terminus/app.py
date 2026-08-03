@@ -8,6 +8,7 @@ File path: terminus/app.py
 """
 import logging
 import os
+import sys
 import secrets
 
 from flask import Flask
@@ -26,6 +27,13 @@ _KEY_PATH = os.path.join(BASE_DIR, ".key")
 
 HOST = "127.0.0.1"
 PORT = 5001
+
+if sys.platform == "win32":
+    LOCAL_SHELL = os.environ.get("COMSPEC", "cmd.exe")
+    LOCAL_SHELL_LABEL = os.path.basename(LOCAL_SHELL)
+else:
+    LOCAL_SHELL = os.environ.get("SHELL", "/bin/bash")
+    LOCAL_SHELL_LABEL = os.path.basename(LOCAL_SHELL)
 
 
 def _load_or_create_secret():

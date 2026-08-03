@@ -12,6 +12,9 @@ cryptography>=42.0
 # Desktop launcher only (native window). Not needed for web_launcher.py.
 pywebview>=5.0
 
+# Local shell PTY — Windows only (ConPTY). POSIX uses the stdlib pty module.
+pywinpty>=2.0 ; sys_platform == "win32"
+
 # ---------------------------------------------------------------------------
 # Internal dependency (not on PyPI) — install separately / via PYTHONPATH:
 #   netcore   -> provides GenericHandler used by terminus/services.py
