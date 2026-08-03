@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Runtime configuration (constants first, so sibling modules can import them
 # without triggering a circular import via create_app()).
 # ---------------------------------------------------------------------------
-BASE_DIR = os.path.expanduser("~/terminus")
+BASE_DIR = os.path.expanduser("~/.terminus")
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 DB_PATH = os.path.join(BASE_DIR, "terminus.db")
 _KEY_PATH = os.path.join(BASE_DIR, ".key")
