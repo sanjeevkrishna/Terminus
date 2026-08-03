@@ -108,6 +108,11 @@ TW.applyTheme = function (id, {persist = true} = {}) {
     localStorage.setItem(TW.THEME_KEY, id);
     if (persist) TW.savePrefs({theme: id});
     TW.renderThemeGrid();
+
+    // Desktop shell only: tint the native title bar to match.
+    if (window.pywebview?.api?.set_titlebar_theme) {
+        window.pywebview.api.set_titlebar_theme(id);
+    }
 };
 
 TW.applyFont = function (id, {persist = true} = {}) {

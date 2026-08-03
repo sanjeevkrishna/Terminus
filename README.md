@@ -60,15 +60,16 @@ Terminus/
 
 ### Where your data lives
 
-Terminus stores everything under **`~/terminus`** (your home directory), never
+Terminus stores everything under **`~/.terminus`** (your home directory), never
 inside the app folder:
 
-| Path                         | Purpose                                    |
-| ---------------------------- | ------------------------------------------ |
-| `~/terminus/terminus.db`     | SQLite store of connectors (encrypted)     |
-| `~/terminus/logs/`           | Per-session `.log` files                   |
-| `~/terminus/.key`            | Persistent encryption key (auto-generated) |
-| `~/terminus/webview/`        | Desktop window storage (theme, cache)      |
+| Path                      | Purpose                                    |
+|---------------------------| ------------------------------------------ |
+| `~/.terminus/terminus.db` | SQLite store of connectors (encrypted)     |
+| `~/.terminus/logs/`       | Per-session `.log` files                   |
+| `~/.terminus/.key`        | Persistent encryption key (auto-generated) |
+| `~/.terminus/webview/`    | Desktop window storage (theme, cache)      |
+| `~/.terminus/prefs/`      | User preferences (theme, font, etc.) |
 
 The `.key` file is created on first run and reused thereafter, so encrypted
 connector passwords remain readable across restarts. **Back it up** if you back
@@ -214,13 +215,13 @@ Choices persist across restarts (stored in the browser / webview
 
 Runtime settings live at the top of `terminus/app.py`:
 
-| Setting             | Default           | Description                              |
-| ------------------- |-------------------| ---------------------------------------- |
-| `HOST`              | `127.0.0.1`       | Bind address (keep localhost)            |
-| `PORT`              | `5001`            | Preferred port                           |
-| `BASE_DIR`          | `~/terminus`      | Root for DB, logs, key, and webview data |
+| Setting             | Default               | Description                              |
+| ------------------- |-----------------------| ---------------------------------------- |
+| `HOST`              | `127.0.0.1`           | Bind address (keep localhost)            |
+| `PORT`              | `5001`                | Preferred port                           |
+| `BASE_DIR`          | `~/.terminus`         | Root for DB, logs, key, and webview data |
 | `LOCAL_SHELL`       | `$COMSPEC` / `$SHELL` | Command used for the Local Shell feature |
-| `LOCAL_SHELL_LABEL` | shell basename    | Label shown for local shell sessions     |
+| `LOCAL_SHELL_LABEL` | shell basename        | Label shown for local shell sessions     |
 
 On Windows, set `LOCAL_SHELL` to `cmd.exe` or `pwsh.exe` if you prefer. The
 desktop launcher automatically falls back to a free port if `PORT` is in use.
@@ -242,7 +243,7 @@ desktop launcher automatically falls back to a free port if `PORT` is in use.
 - **Security posture** — no authentication by design; Terminus binds to
   localhost and runs like a personal desktop tool. The Local Shell feature can
   run arbitrary local commands — acceptable for a single-user localhost app.
-  Connector passwords are encrypted with Fernet, keyed off `~/terminus/.key`.
+  Connector passwords are encrypted with Fernet, keyed off `~/.terminus/.key`.
 
 ---
 
@@ -255,7 +256,7 @@ Something is already on port 5001. Stop it, or change `PORT` in
 **HTML/CSS/JS edits don't show.**
 Use `dev_launcher.py` while developing — it disables all caching. In the
 browser, a hard reload (Ctrl+F5) also busts the cache. The desktop window
-caches assets in `~/terminus/webview`.
+caches assets in `~/.terminus/webview`.
 
 **Desktop window shows the Python icon.**
 Ensure `terminus/static/img/terminus.ico` exists. When run via `python` the icon is
@@ -272,7 +273,7 @@ Google Fonts (needs internet). In the browser console:
 `document.fonts.check('400 13px "JetBrains Mono"')` should return `true`.
 
 **Stored passwords stopped working.**
-The `~/terminus/.key` file was likely regenerated or moved. Restore the original
+The `~/.terminus/.key` file was likely regenerated or moved. Restore the original
 key, or re-enter the affected connector passwords.
 
 ---
