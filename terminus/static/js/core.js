@@ -9,7 +9,7 @@ const TW = {
     RESTORE_KEY: "terminus_open_sessions",
     THEME_KEY: "terminus_theme",
     FONT_KEY: "terminus_font",
-    DEFAULT_THEME: "dark",
+    DEFAULT_THEME: "light",
     DEFAULT_FONT: "Google Sans Code",
     FONT_FALLBACK: '"Google Sans Code", "JetBrains Mono", Consolas, monospace',
 
@@ -103,20 +103,20 @@ TW.readFromClipboard = async function () {
 TW.currentFont = () => localStorage.getItem(TW.FONT_KEY) || TW.DEFAULT_FONT;
 TW.currentFontStack = () => TW.fontStack(TW.currentFont());
 
-TW.applyTheme = function (id) {
+TW.applyTheme = function (id, {persist = true} = {}) {
     document.documentElement.setAttribute("data-theme", id);
     localStorage.setItem(TW.THEME_KEY, id);
+    if (persist) TW.savePrefs({theme: id});
     TW.renderThemeGrid();
-    // Terminals recolor via the MutationObserver below.
 };
 
 TW.applyFont = function (id, {persist = true} = {}) {
-    if (persist) localStorage.setItem(TW.FONT_KEY, id);
-
+    if (persist) {
+        localStorage.setItem(TW.FONT_KEY, id);
+        TW.savePrefs({font: id});
+    }
     const stack = TW.fontStack(id);
     document.documentElement.style.setProperty("--font-mono", stack);
-
-    // Load the font, then apply to every open terminal and force a re-render.
     TW.ensureTermFont(id).then(() => {
         Object.values(TW.open).forEach(o => {
             o.term.options.fontFamily = stack;
@@ -126,9 +126,16 @@ TW.applyFont = function (id, {persist = true} = {}) {
             } catch (_) { /* ignore */ }
         });
     });
-
     const preview = TW.$("fontPreview");
     if (preview) preview.style.fontFamily = stack;
+};
+
+TW.savePrefs = function (partial) {
+    fetch("/api/prefs", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(partial),
+    }).catch(() => { /* ignore */ });
 };
 
 TW.renderThemeGrid = function () {
@@ -263,17 +270,27 @@ document.querySelectorAll(".modal-overlay").forEach(ov => {
     });
 });
 
-/* ===== Boot: apply persisted appearance ===== */
-(function boot() {
-    TW.applyTheme(localStorage.getItem(TW.THEME_KEY) || TW.DEFAULT_THEME);
+/* ===== Boot: apply persisted appearance (server-backed) ===== */
+(async function boot() {
+    // The HTML already carries the server theme on <html data-theme>, so the
+    // first paint is correct. Sync JS state + font from the server prefs.
+    const domTheme = document.documentElement.getAttribute("data-theme")
+        || TW.DEFAULT_THEME;
+    localStorage.setItem(TW.THEME_KEY, domTheme);
     TW.applyFont(TW.currentFont(), {persist: false});
-})();
 
-// Re-apply font once webfonts are ready (avoids first-paint fallback).
-if (document.fonts?.ready) {
-    document.fonts.ready.then(() => {
-        const stack = TW.currentFontStack();
-        Object.values(TW.open).forEach(o => { o.term.options.fontFamily = stack; });
-        Object.keys(TW.open).forEach(id => TW.safeFit(id));
-    });
-}
+    try {
+        const res = await fetch("/api/prefs");
+        if (res.ok) {
+            const prefs = await res.json();
+            if (prefs.theme && prefs.theme !== domTheme) {
+                TW.applyTheme(prefs.theme, {persist: false});
+            }
+            if (prefs.font && prefs.font !== TW.currentFont()) {
+                TW.applyFont(prefs.font, {persist: false});
+            } else {
+                TW.renderThemeGrid();  // ensure grid reflects active theme
+            }
+        }
+    } catch (_) { /* offline / no prefs yet — DOM theme stands */ }
+})();

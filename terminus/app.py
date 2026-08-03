@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 BASE_DIR = os.path.expanduser("~/.terminus")
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 DB_PATH = os.path.join(BASE_DIR, "terminus.db")
+PREFS_PATH = os.path.join(BASE_DIR, "prefs.json")
 _KEY_PATH = os.path.join(BASE_DIR, ".key")
 
 HOST = "127.0.0.1"

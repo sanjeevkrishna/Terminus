@@ -7,13 +7,14 @@ endpoint. Routes are registered directly on the Flask app (no blueprint).
 File path: terminus/routes.py
 """
 import glob
+import json
 import logging
 import os
 import time
 
 from flask import abort, jsonify, render_template, request, send_file
 
-from .app import LOG_DIR
+from .app import LOG_DIR, PREFS_PATH
 from .credentials import get_store
 from .services import connector_to_params, test_connection
 from .sockets import get_state
@@ -64,7 +65,8 @@ def _flush_session_log(sess):
 # Page
 # ---------------------------------------------------------------------------
 def render():
-    return render_template("terminus.html")
+    prefs = _read_prefs()
+    return render_template("terminus.html", theme=prefs.get("theme", "dark"))
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +99,35 @@ def download_log(session_id):
         real_log, as_attachment=True,
         download_name=download_name, mimetype="text/plain",
     )
+
+
+# ---------------------------------------------------------------------------
+# Preferences (theme / font) — persisted server-side, launcher-independent
+# ---------------------------------------------------------------------------
+def _read_prefs():
+    try:
+        with open(PREFS_PATH, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def get_prefs():
+    return jsonify(_read_prefs())
+
+
+def save_prefs():
+    body = request.get_json(silent=True) or {}
+    prefs = _read_prefs()
+    for key in ("theme", "font"):
+        if key in body:
+            prefs[key] = body[key]
+    try:
+        with open(PREFS_PATH, "w", encoding="utf-8") as fh:
+            json.dump(prefs, fh)
+    except OSError:
+        abort(500, description="Could not save preferences.")
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +263,8 @@ def register_routes(app):
     rules = [
         ("/",                          "render",           render,           ["GET"]),
         ("/download/<session_id>",     "download_log",     download_log,     ["GET"]),
+        ("/api/prefs",                 "get_prefs",        get_prefs,        ["GET"]),
+        ("/api/prefs",                 "save_prefs",       save_prefs,       ["POST"]),
         ("/logs",                      "list_logs",        list_logs,        ["GET"]),
         ("/logs/view/<path:filename>", "view_log",         view_log,         ["GET"]),
         ("/logs",                      "delete_logs",      delete_logs,      ["DELETE"]),

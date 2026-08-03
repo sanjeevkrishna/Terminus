@@ -256,7 +256,7 @@ textarea.mono { font-family: var(--font-mono); line-height: 1.55; resize: vertic
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 600;
+    font-weight: 500;
 }
 .ts-row-actions { display: none; gap: 3px; flex-shrink: 0; }
 .ts-item:hover .ts-row-actions { display: flex; }
