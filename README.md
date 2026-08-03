@@ -159,7 +159,7 @@ pythonw desktop_launcher.py
 
 3. Open the shortcut's **Properties** and set:
    - **Start in:** `C:\path\to\Terminus`
-   - **Change Icon…:** `C:\path\to\Terminus\terminus\static\img\brand.ico`
+   - **Change Icon…:** `C:\path\to\Terminus\terminus\static\img\terminus.ico`
 4. Name it **Terminus**. Double-click to launch.
 
 ---
@@ -258,7 +258,7 @@ browser, a hard reload (Ctrl+F5) also busts the cache. The desktop window
 caches assets in `~/terminus/webview`.
 
 **Desktop window shows the Python icon.**
-Ensure `terminus/static/img/brand.ico` exists. When run via `python` the icon is
+Ensure `terminus/static/img/terminus.ico` exists. When run via `python` the icon is
 applied at runtime; give it a second or two after the window appears.
 
 **Local Shell fails to open (Windows).**
