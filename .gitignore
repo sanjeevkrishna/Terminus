@@ -1,0 +1,123 @@
+# ---------------------------------------------------------------------------
+# Terminus - .gitignore
+#
+# Design note: build/ is NOT ignored wholesale. It holds three committed build
+# INPUTS (terminus.spec, terminus.iss, rthook_streams.py). PyInstaller's
+# generated working tree lives in .pyi-cache/ instead, so build/ stays clean
+# and there is no fragile "ignore build/ then negate it back" pattern.
+# ---------------------------------------------------------------------------
+
+# Byte-compiled / optimized / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Virtual environments
+venv/
+venv*/
+.venv/
+.venv*/
+env/
+ENV/
+.python-version
+
+# ---------------------------------------------------------------------------
+# Build output
+#
+#   .pyi-cache/   PyInstaller --workpath (analysis cache, TOCs, warn logs)
+#   dist/         PyInstaller --distpath and the finished installers
+# ---------------------------------------------------------------------------
+.pyi-cache/
+dist/
+build/__pycache__/
+*.egg-info/
+*.manifest
+
+# Packaging staging directories (Linux AppImage, macOS DMG)
+AppDir/
+*.AppDir/
+dmg-staging/
+appimagetool
+
+# Do NOT add a bare `*.spec` rule: build/terminus.spec is a committed input.
+
+# Test / lint / coverage
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Merge and patch artifacts
+*.orig
+*.rej
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs. Session logs live in ~/.terminus/logs; this catches stray local copies
+# pulled in for debugging.
+*.log
+
+# ---------------------------------------------------------------------------
+# Terminus runtime data
+#
+# All of it lives under ~/.terminus, never in the repository. These patterns
+# only catch local copies made while debugging.
+# ---------------------------------------------------------------------------
+terminus.db
+terminus.db-wal
+terminus.db-shm
+prefs.json
+.key
+/logs/
+/webview/
+
+# Environment / secrets
+.env
+.env.*
+
+# ---------------------------------------------------------------------------
+# Explicit keeps
+#
+# Nothing above currently ignores these. The negations are defensive: they
+# guarantee that a future rule for minified assets, binaries or fonts cannot
+# silently break the app or the installers.
+# ---------------------------------------------------------------------------
+
+# Build inputs
+!build/terminus.spec
+!build/terminus.iss
+!build/rthook_streams.py
+!build/wizard-large.bmp
+!build/wizard-large@2x.bmp
+!build/wizard-small.bmp
+!build/wizard-small@2x.bmp
+
+# Committed icons. terminus.png is the master artwork; .ico and .icns are
+# derived from it once and committed as binaries, not built in CI.
+!terminus/static/img/terminus.png
+!terminus/static/img/terminus.ico
+!terminus/static/img/terminus.icns
+
+# Vendored browser assets are dependencies, not build output. Committed on
+# purpose so the app works offline and fetches no executable code at runtime.
+!terminus/static/js/vendor/
+!terminus/static/js/vendor/*.js
+!terminus/static/css/vendor/
+!terminus/static/css/vendor/*.css
+!terminus/static/fonts/
+!terminus/static/fonts/*.woff2

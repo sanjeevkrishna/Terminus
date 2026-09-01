@@ -1,0 +1,131 @@
+# ---------------------------------------------------------------------------
+# Terminus — packaging, dependencies and tool configuration.
+#
+# This file is the single source of truth for dependencies and tool config.
+# ---------------------------------------------------------------------------
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "terminus"
+description = "Local, desktop-style web SSH terminal for network engineers"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+keywords = ["ssh", "terminal", "network", "netmiko", "xterm"]
+
+# Read from terminus/__init__.py so the version lives in exactly one place.
+# setuptools resolves this statically — __init__.py must stay import-free.
+dynamic = ["version"]
+
+dependencies = [
+    # Web framework and realtime transport
+    "Flask>=3.0",
+    "Flask-SocketIO>=5.3",
+    # Without this, Flask-SocketIO silently falls back to HTTP long-polling in
+    # threading mode, which makes terminal echo and AI streaming laggy.
+    "simple-websocket>=1.0",
+
+    # SSH transport and device drivers
+    "netmiko>=4.3",
+
+    # Fernet encryption for stored credentials
+    "cryptography>=42.0",
+
+    # Terminal emulation, so session logs match what the screen showed
+    "pyte>=0.8",
+
+    # Local shell PTY. Windows only — POSIX uses the stdlib pty module.
+    "pywinpty>=2.0; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+# Native desktop window. Not needed for `run.py browser` or `run.py dev`.
+desktop = ["pywebview>=5.0"]
+
+# AI providers — install whichever you configure under Settings → AI.
+azure = [
+    "openai>=1.30",
+]
+ollama = ["ollama>=0.3"]
+
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+
+[tool.setuptools]
+packages = ["terminus", "terminus.ai"]
+
+[tool.setuptools.dynamic]
+version = { attr = "terminus.__version__" }
+
+[tool.setuptools.package-data]
+terminus = [
+    "templates/*.html",
+    "static/css/*.css",
+    "static/css/vendor/*.css",
+    "static/js/*.js",
+    "static/js/vendor/*.js",
+    "static/fonts/*.woff2",
+    "static/img/*",
+]
+
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Belt and braces: harmless when the package is installed editable, and the
+# only thing needed when it is not.
+pythonpath = ["."]
+addopts = "-q"
+
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+# Matches the existing codebase — raising this would churn every file.
+line-length = 79
+target-version = "py311"
+src = ["terminus", "launchers", "tests"]
+extend-exclude = ["terminus/static/js/vendor"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # import sorting
+    "N",    # naming
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplify
+    "RET",  # return statements
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",    # ruff-format owns line length
+    "B008",    # Flask patterns rely on call-in-default
+    "SIM105",  # contextlib.suppress reads worse in the hot paths here
+    "SIM108",  # ternaries are not always clearer than if/else
+]
+
+[tool.ruff.lint.per-file-ignores]
+"terminus/sockets.py" = ["C901"]
+"terminus/ai/providers.py" = ["N815"]
+"launchers/desktop.py" = ["N806"]
+"run.py" = ["PTH123", "SIM115"]
+"build/rthook_streams.py" = ["PTH123", "SIM115"]
+"terminus/logbanner.py" = ["SIM115"]
+"tests/*" = ["SLF001", "SIM115"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

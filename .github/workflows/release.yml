@@ -1,0 +1,613 @@
+# Terminus — build and release
+#
+# Push a tag to produce installers for all three platforms:
+#
+#     git tag -a v1.2.0 -m "..." && git push --follow-tags
+#
+# Also runnable manually from the Actions tab, which builds artifacts without
+# creating a release — useful for testing the workflow itself.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (without leading v), e.g. 1.2.0"
+        required: true
+        default: "0.0.0-dev"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_NAME: Terminus
+  # Bump once pywinpty / bcrypt / cryptography publish 3.14 wheels for all
+  # three platforms.
+  PY_VERSION: "3.12"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUTF8: "1"              # prevents the CP1252 encode errors seen earlier
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 0. Gate: lint + tests, and resolve the version every other job uses
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      version_numeric: ${{ steps.ver.outputs.version_numeric }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PY_VERSION }}
+          cache: pip
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ github.event.inputs.version }}"
+          fi
+
+          # Inno Setup's VersionInfoVersion accepts digits and dots only, so
+          # 1.2.0-rc1 must become 1.2.0. Anything unparseable falls back to
+          # 0.0.0 rather than failing the compile several minutes later.
+          NUM="$(printf '%s' "$V" | sed -E 's/^[^0-9]*//; s/[^0-9.].*$//; s/\.+$//')"
+          case "$NUM" in
+            ""|*[!0-9.]*) NUM="0.0.0" ;;
+          esac
+
+          echo "version=${V}"                 >> "$GITHUB_OUTPUT"
+          echo "version_numeric=${NUM}"        >> "$GITHUB_OUTPUT"
+          echo "display version : ${V}"
+          echo "numeric version : ${NUM}"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[desktop,azure,ollama,dev]"
+      - name: Ruff
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+        continue-on-error: true      # set false once formatting is fully applied
+
+      - name: Pytest
+        run: pytest -q
+
+  # ---------------------------------------------------------------------------
+  # 1. Windows: PyInstaller -> smoke test -> Inno Setup
+  # ---------------------------------------------------------------------------
+  windows:
+    name: Windows installer
+    needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+      DIST_ROOT: dist\windowed
+      BUNDLE_DIR: dist\windowed\Terminus
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PY_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[desktop,azure,ollama]"
+          pip install pyinstaller
+
+      # Defender's real-time scanner holds transient locks on freshly written
+      # .pyd/.dll files and materially slows COLLECT.
+      - name: Exclude workspace from Defender
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          Add-MpPreference -ExclusionPath "$env:GITHUB_WORKSPACE"
+          Write-Host "Defender exclusion added for $env:GITHUB_WORKSPACE"
+
+      # Do the delete ourselves, with retries, so PyInstaller's COLLECT never
+      # has to - that is where WinError 5 on _bcrypt.pyd came from.
+      - name: Clean dist (lock-tolerant)
+        shell: pwsh
+        run: |
+          $target = "dist"
+          for ($i = 1; $i -le 6; $i++) {
+            if (-not (Test-Path $target)) { break }
+            try {
+              Remove-Item $target -Recurse -Force -ErrorAction Stop
+              Write-Host "dist removed on attempt $i"
+              break
+            } catch {
+              Write-Host "clean attempt $i failed: $($_.Exception.Message)"
+              Start-Sleep -Seconds ([Math]::Pow(2, $i))
+            }
+          }
+          if (Test-Path $target) {
+            Write-Host "::error::could not clean dist - a process is holding files"
+            Get-Process | Where-Object { $_.Path -like "*\dist\*" } |
+              Format-Table Id, ProcessName, Path -AutoSize
+            exit 1
+          }
+
+      # Dedicated distpath/workpath: two PyInstaller runs must never share an
+      # output tree. TERMINUS_* are read by build/terminus.spec.
+      - name: Build frozen bundle
+        shell: pwsh
+        env:
+          TERMINUS_VERSION: ${{ needs.verify.outputs.version }}
+          TERMINUS_WITH_AI: "1"
+          TERMINUS_GUI: "1"
+        run: |
+          pyinstaller build\terminus.spec `
+            --noconfirm `
+            --distpath ${{ env.DIST_ROOT }} `
+            --workpath .pyi-cache\windowed `
+            --log-level INFO
+
+      # Guards the regression where OpenConsole.exe was silently omitted and
+      # local shells died with EOFError at runtime.
+      - name: Verify bundle contents
+        shell: pwsh
+        run: |
+          $root = "${{ env.BUNDLE_DIR }}"
+          foreach ($r in @("Terminus.exe", "_internal\bcrypt\_bcrypt.pyd")) {
+            if (-not (Test-Path (Join-Path $root $r))) {
+              Write-Host "::error::missing from bundle: $r"; exit 1
+            }
+            Write-Host "OK  $r"
+          }
+          foreach ($h in @("OpenConsole.exe", "winpty-agent.exe", "conpty.dll", "winpty.dll")) {
+            $hit = Get-ChildItem -Path $root -Recurse -Filter $h -ErrorAction SilentlyContinue |
+                   Select-Object -First 1
+            if ($hit) { Write-Host "OK  $h" }
+            else      { Write-Host "::warning::helper not in bundle: $h" }
+          }
+
+      # --selftest wires the app and exits 0. Never opens a window, so nothing
+      # is left holding bundled DLLs. Kill-tree because the bundle spawns
+      # OpenConsole.exe / winpty-agent.exe children.
+      - name: Smoke test frozen binary
+        shell: pwsh
+        run: |
+          $exe = "${{ env.BUNDLE_DIR }}\Terminus.exe"
+          $out = "$env:RUNNER_TEMP\selftest.out"
+          $err = "$env:RUNNER_TEMP\selftest.err"
+
+          $p = Start-Process -FilePath $exe -ArgumentList "--selftest" `
+                             -PassThru -NoNewWindow `
+                             -RedirectStandardOutput $out -RedirectStandardError $err
+
+          if (-not $p.WaitForExit(120000)) {
+            Write-Host "::error::selftest timed out after 120s"
+            try { $p.Kill($true) } catch { }
+            Get-Content $out, $err -ErrorAction SilentlyContinue
+            exit 1
+          }
+
+          Write-Host "--- stdout ---"; Get-Content $out -ErrorAction SilentlyContinue
+          Write-Host "--- stderr ---"; Get-Content $err -ErrorAction SilentlyContinue
+
+          if ($p.ExitCode -ne 0) {
+            Write-Host "::error::selftest exited with $($p.ExitCode)"
+            exit $p.ExitCode
+          }
+          Write-Host "OK selftest passed"
+
+      - name: Kill straggler processes
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($n in @("Terminus", "OpenConsole", "winpty-agent", "pythonw", "msedgewebview2")) {
+            Get-Process -Name $n -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Host "killing $($_.ProcessName) (pid $($_.Id))"
+              try { $_.Kill($true) } catch { }
+            }
+          }
+          Start-Sleep -Seconds 3
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            Write-Host "::error::ISCC.exe not found at $iscc"; exit 1
+          }
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $iss = Join-Path $PWD "build\terminus.iss"
+          if (-not (Test-Path $iss)) {
+            Write-Host "::error::installer script not found at $iss"
+            Write-Host "contents of build\:"
+            Get-ChildItem build -Recurse -File -ErrorAction SilentlyContinue |
+              Select-Object FullName | Format-Table -AutoSize
+            exit 1
+          }
+
+          $bundle = Join-Path $PWD "${{ env.BUNDLE_DIR }}"
+          if (-not (Test-Path (Join-Path $bundle "Terminus.exe"))) {
+            Write-Host "::error::Terminus.exe not found under $bundle"; exit 1
+          }
+
+          New-Item -ItemType Directory -Force -Path dist\installer | Out-Null
+          Write-Host "iss     : $iss"
+          Write-Host "bundle  : $bundle"
+          Write-Host "version : ${{ needs.verify.outputs.version }} (numeric ${{ needs.verify.outputs.version_numeric }})"
+
+          & "$env:ISCC" `
+            "/DMyAppVersion=${{ needs.verify.outputs.version }}" `
+            "/DMyAppVersionNumeric=${{ needs.verify.outputs.version_numeric }}" `
+            "/DDistDir=$bundle" `
+            "$iss"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::ISCC failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          Get-ChildItem dist\installer | Format-Table Name, Length -AutoSize
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem dist\installer -Filter *.exe | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$h  $($_.Name)" | Out-File "$($_.FullName).sha256" -Encoding ascii
+            Write-Host "$h  $($_.Name)"
+          }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            dist/installer/*.exe
+            dist/installer/*.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-logs
+          path: |
+            .pyi-cache/windowed/**/warn-*.txt
+            .pyi-cache/windowed/**/xref-*.html
+          retention-days: 7
+          if-no-files-found: ignore
+
+# ---------------------------------------------------------------------------
+  # 2. macOS: Apple Silicon DMG
+  #
+  # Intel (x86_64) is deliberately not built: the macos-13 runners are being
+  # retired and queue times were unworkable. Intel users can run from source,
+  # or a universal2 build can be added once every native dependency ships
+  # universal2 wheels.
+  # ---------------------------------------------------------------------------
+  macos:
+    name: macOS DMG (arm64)
+    needs: verify
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+      DIST_ROOT: dist/mac-arm64
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PY_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[desktop,azure,ollama]"
+          pip install pyinstaller
+
+      - name: Clean dist
+        run: rm -rf "${DIST_ROOT}" .pyi-cache/mac-arm64 dmg-staging
+
+      - name: Build frozen bundle
+        env:
+          TERMINUS_VERSION: ${{ needs.verify.outputs.version }}
+          TERMINUS_WITH_AI: "1"
+          TERMINUS_GUI: "1"
+        run: |
+          pyinstaller build/terminus.spec \
+            --noconfirm \
+            --distpath "${DIST_ROOT}" \
+            --workpath .pyi-cache/mac-arm64 \
+            --log-level INFO
+          ls -la "${DIST_ROOT}"
+
+      - name: Verify app bundle
+        run: |
+          set -euo pipefail
+          APP="${DIST_ROOT}/${APP_NAME}.app"
+          if [ ! -d "$APP" ]; then
+            echo "::error::no .app bundle produced at $APP"
+            exit 1
+          fi
+
+          # The committed .icns must have landed in Resources, and the plist
+          # must carry the real version rather than the spec's 0.0.0 default.
+          ls -la "$APP/Contents/Resources/"*.icns
+          PLIST_VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
+                        "$APP/Contents/Info.plist")"
+          echo "Info.plist version: $PLIST_VER"
+          if [ "$PLIST_VER" != "${VERSION}" ]; then
+            echo "::error::Info.plist says '$PLIST_VER', expected '${VERSION}' - TERMINUS_VERSION did not reach the spec"
+            exit 1
+          fi
+
+      # Unsigned .app bundles are killed on launch by Gatekeeper; an ad-hoc
+      # signature is enough for CI and for right-click-Open.
+      - name: Ad-hoc codesign
+        run: |
+          set -euo pipefail
+          APP="${DIST_ROOT}/${APP_NAME}.app"
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --verbose=2 "$APP" || true
+
+      # macOS ships no coreutils `timeout`, so use an explicit watchdog.
+      - name: Smoke test frozen binary
+        run: |
+          set -uo pipefail
+          BIN="${DIST_ROOT}/${APP_NAME}.app/Contents/MacOS/${APP_NAME}"
+          echo "smoke testing $BIN"
+
+          "$BIN" --selftest &
+          PID=$!
+          ( sleep 120; kill -9 "$PID" 2>/dev/null ) &
+          WATCHDOG=$!
+
+          wait "$PID"; RC=$?
+          kill "$WATCHDOG" 2>/dev/null || true
+
+          if [ "$RC" -ne 0 ]; then
+            echo "::error::selftest exited with $RC (137 means the 120s watchdog fired)"
+            exit "$RC"
+          fi
+          echo "OK selftest passed"
+
+      # -x matches the process NAME exactly. Never use -f here: the workspace
+      # path contains "Terminus", so -f would match the runner's own processes.
+      - name: Kill stragglers
+        if: always()
+        run: pkill -9 -x "${APP_NAME}" 2>/dev/null || true
+
+      - name: Build DMG
+        run: |
+          set -euo pipefail
+          rm -rf dmg-staging
+          mkdir -p dist/installer dmg-staging
+          cp -R "${DIST_ROOT}/${APP_NAME}.app" dmg-staging/
+          ln -s /Applications dmg-staging/Applications
+
+          NAME="${APP_NAME}-${VERSION}-macos-arm64.dmg"
+          hdiutil create -volname "${APP_NAME} ${VERSION}" \
+                         -srcfolder dmg-staging -ov -format UDZO \
+                         "dist/installer/${NAME}"
+
+          # Checksum must contain the bare filename, not the build path.
+          ( cd dist/installer && shasum -a 256 "${NAME}" | tee "${NAME}.sha256" )
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg-arm64
+          path: |
+            dist/installer/*.dmg
+            dist/installer/*.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 3. Linux: AppImage
+  # ---------------------------------------------------------------------------
+  linux:
+    name: Linux AppImage
+    needs: verify
+    runs-on: ubuntu-22.04          # oldest supported glibc, for portability
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+      DIST_ROOT: dist/linux
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PY_VERSION }}
+          cache: pip
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgirepository1.0-dev gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
+            libcairo2-dev pkg-config desktop-file-utils file
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[desktop,azure,ollama]"
+          pip install pyinstaller
+
+      - name: Clean dist
+        run: rm -rf "${DIST_ROOT}" .pyi-cache/linux AppDir
+
+      - name: Build frozen bundle
+        env:
+          TERMINUS_VERSION: ${{ needs.verify.outputs.version }}
+          TERMINUS_WITH_AI: "1"
+          TERMINUS_GUI: "1"
+        run: |
+          pyinstaller build/terminus.spec \
+            --noconfirm \
+            --distpath "${DIST_ROOT}" \
+            --workpath .pyi-cache/linux \
+            --log-level INFO
+          ls -la "${DIST_ROOT}/${APP_NAME}"
+
+      - name: Smoke test frozen binary
+        run: |
+          set -euo pipefail
+          timeout 120s "${DIST_ROOT}/${APP_NAME}/${APP_NAME}" --selftest
+          echo "OK selftest passed"
+
+      - name: Kill stragglers
+        if: always()
+        run: pkill -9 -x "${APP_NAME}" 2>/dev/null || true
+
+      - name: Assemble AppDir
+        run: |
+          set -euo pipefail
+          APPDIR="AppDir"
+          rm -rf "$APPDIR"
+          mkdir -p "$APPDIR/usr/bin" \
+                   "$APPDIR/usr/share/applications" \
+                   "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+
+          cp -R "${DIST_ROOT}/${APP_NAME}/." "$APPDIR/usr/bin/"
+
+          # Linux uses the master PNG directly - no .ico/.icns involved.
+          ICON="terminus/static/img/terminus.png"
+          if [ ! -f "$ICON" ]; then
+            echo "::error::$ICON not found"; exit 1
+          fi
+          cp "$ICON" "$APPDIR/usr/share/icons/hicolor/256x256/apps/terminus.png"
+          cp "$ICON" "$APPDIR/terminus.png"
+
+          cat > "$APPDIR/usr/share/applications/terminus.desktop" <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Terminus
+          Comment=Web-based SSH tool with AI assistant
+          Exec=Terminus
+          Icon=terminus
+          Categories=Network;System;TerminalEmulator;
+          Terminal=false
+          EOF
+          cp "$APPDIR/usr/share/applications/terminus.desktop" "$APPDIR/terminus.desktop"
+
+          cat > "$APPDIR/AppRun" <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "${HERE}/usr/bin/Terminus" "$@"
+          EOF
+          chmod +x "$APPDIR/AppRun"
+
+          desktop-file-validate "$APPDIR/terminus.desktop" || true
+
+      - name: Build AppImage
+        run: |
+          set -euo pipefail
+          mkdir -p dist/installer
+          wget -q -O appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+          NAME="${APP_NAME}-${VERSION}-x86_64.AppImage"
+          # FUSE is unavailable on hosted runners.
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir "dist/installer/${NAME}"
+          chmod +x "dist/installer/${NAME}"
+          ( cd dist/installer && sha256sum "${NAME}" | tee "${NAME}.sha256" )
+
+      - name: Smoke test AppImage
+        run: |
+          set -euo pipefail
+          NAME="${APP_NAME}-${VERSION}-x86_64.AppImage"
+          # Env var rather than an argument, so the app never sees a stray flag.
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 120s "dist/installer/${NAME}" --selftest
+          echo "OK AppImage selftest passed"
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: |
+            dist/installer/*.AppImage
+            dist/installer/*.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 4. Publish
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: [verify, windows, macos, linux]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten and list
+        run: |
+          set -euo pipefail
+          mkdir -p upload
+          find artifacts -type f \
+            \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.sha256' \) \
+            -exec cp {} upload/ \;
+          ls -la upload
+
+          # Four platform artifacts plus four checksums.
+          COUNT="$(find upload -type f ! -name '*.sha256' | wc -l)"
+          echo "binary artifacts: ${COUNT}"
+          if [ "$COUNT" -lt 3 ]; then
+            echo "::warning::expected 3 binary artifacts, found ${COUNT}"
+          fi
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ env.APP_NAME }} ${{ needs.verify.outputs.version }}"
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          generate_release_notes: true
+          files: upload/*
+          body: |
+            ## ${{ env.APP_NAME }} ${{ needs.verify.outputs.version }}
+
+            | Platform | Artifact |
+            |---|---|
+            | Windows 10/11 x64 | `.exe` installer (Inno Setup) |
+            | macOS 12+ Apple Silicon | `-macos-arm64.dmg` |
+            | Linux x86_64 | `.AppImage` |
+
+            SHA-256 checksums are attached alongside each artifact.
+
+            > These builds are **unsigned**. Windows SmartScreen and macOS
+            > Gatekeeper will warn on first launch. On macOS, right-click the
+            > app and choose *Open* to bypass.

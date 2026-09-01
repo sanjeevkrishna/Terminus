@@ -1,0 +1,2605 @@
+/* Terminus — floating glass panels on a gradient canvas.
+
+   Section order:
+     1. Fonts
+     2. Design tokens
+     3. Themes
+     4. Base and reset
+     5. Buttons
+     6. App shell — top bar, sidebar, terminal panel
+     7. Modals
+     8. Forms
+     9. Settings modal
+    10. Tables
+    11. Tools modal — shared panel skeleton
+    12. Assistant — conversation, approval cards, execution
+    13. AI settings and disclaimer
+    14. Performance mode
+    15. Animations and reduced motion
+
+   File path: terminus/static/css/common.css */
+
+
+/* ===========================================================================
+   1. Fonts
+   =========================================================================== */
+@font-face {
+    font-family: "Inter";
+    src: url("../fonts/Inter.woff2") format("woff2-variations");
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Google Sans Code";
+    src: url("../fonts/GoogleSansCode.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Material Symbols Rounded";
+    src: url("../fonts/MaterialSymbolsRounded.woff2") format("woff2");
+    font-weight: 100 700;
+    font-display: block;
+}
+
+
+/* ===========================================================================
+   2. Design tokens
+   =========================================================================== */
+:root {
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "Google Sans Code", "JetBrains Mono", Consolas, monospace;
+    --font-size-sm: 12.6px;
+    --font-size-term: 12.6px;
+    --font-size-xs: 11.5px;
+
+    --radius: 8px;
+    --radius-md: 6px;
+    --radius-sm: 4px;
+
+    /* Tools modal band heights. Broadcast and Assistant share these so both
+       tabs have identical vertical rhythm and Send never moves between them. */
+    --tl-tabs-h: 46px;
+    --tl-head-h: 46px;
+    --tl-status-h: 36px;
+    --tl-foot-h: 74px;
+}
+
+
+/* ===========================================================================
+   3. Themes
+
+   Every theme defines the full token set. The *-bg tokens back the status pills
+   (.test-result, .cap-note, .tl-status--error), so each must be a visible tint
+   of its foreground — setting it equal to the page background makes those
+   states lose their fill entirely.
+   =========================================================================== */
+:root,
+:root[data-theme="light"] {
+    --terminal-variant: light;
+    --background-color: #f6f8fa;
+    --background-color-secondary: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f0f2f4;
+    --text-color: #000000;
+    --text-muted: #57606a;
+    --border-color: #d0d7de;
+    --hover-background: #eef1f4;
+    --active-background: #e3ecf7;
+    --accent: #1565c0;
+    --accent-contrast: #ffffff;
+    --gradient: #176dbe;
+    --shadow: 0 12px 40px rgba(27, 31, 36, .16);
+    --scrollbar: #c9d1d9;
+    --focus-ring: rgba(21, 101, 192, .25);
+
+    --ok: #27ae60;
+    --ok-bg: #e8f8f5;
+    --ok-ring: rgba(39, 174, 96, .30);
+    --warn: #e67e22;
+    --warn-bg: #fef7e9;
+    --warn-ring: rgba(230, 126, 34, .30);
+    --err: #c0392b;
+    --err-bg: #fdecea;
+    --err-ring: rgba(192, 57, 43, .30);
+
+    --canvas:
+        radial-gradient(1100px 700px at 8% -5%, #c6d8f3 0%, transparent 55%),
+        radial-gradient(1000px 800px at 105% 10%, #bedcaf 0%, transparent 55%),
+        radial-gradient(900px 900px at 50% 120%, #d8a6d4 0%, transparent 60%),
+        linear-gradient(135deg, #eaf6ff 0%, #f3ecff 100%);
+}
+
+:root[data-theme="dark"] {
+    --terminal-variant: dark;
+    --background-color: #1e1e1e;
+    --background-color-secondary: #252526;
+    --surface: #252526;
+    --surface-2: #1b1b1b;
+    --text-color: #ffffff;
+    --text-muted: #9d9d9d;
+    --border-color: #3c3c3c;
+    --hover-background: #2a2a2a;
+    --active-background: #2f3b4a;
+    --accent: #4fa3ff;
+    --accent-contrast: #0b1620;
+    --gradient: #176dbe;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .55);
+    --scrollbar: #3c3c3c;
+    --focus-ring: rgba(79, 163, 255, .30);
+
+    --ok: #27ae60;
+    --ok-bg: #16291f;
+    --ok-ring: rgba(39, 174, 96, .40);
+    --warn: #f39c12;
+    --warn-bg: #2e2415;
+    --warn-ring: rgba(243, 156, 18, .40);
+    --err: #e74c3c;
+    --err-bg: #2e1a18;
+    --err-ring: rgba(231, 76, 60, .40);
+
+    --canvas:
+        radial-gradient(1100px 700px at 10% -8%, #0c0c4c 0%, transparent 55%),
+        radial-gradient(1000px 800px at 108% 12%, #1f501b 0%, transparent 55%),
+        radial-gradient(900px 900px at 45% 120%, #400e47 0%, transparent 60%),
+        linear-gradient(135deg, #14141c 0%, #4d4759 100%);
+}
+
+:root[data-theme="nord"] {
+    --terminal-variant: dark;
+    --background-color: #2e3440;
+    --background-color-secondary: #3b4252;
+    --surface: #3b4252;
+    --surface-2: #262b35;
+    --text-color: #f4f7fb;
+    --text-muted: #8794a8;
+    --border-color: #545d70;
+    --hover-background: #465063;
+    --active-background: #4f5b72;
+    --accent: #8fbcbb;
+    --accent-contrast: #1c2027;
+    --gradient: #5e9bd6;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .50);
+    --scrollbar: #545d70;
+    --focus-ring: rgba(143, 188, 187, .35);
+
+    --ok: #b4d69a;
+    --ok-bg: #333f33;
+    --ok-ring: rgba(180, 214, 154, .45);
+    --warn: #f2d492;
+    --warn-bg: #423a2a;
+    --warn-ring: rgba(242, 212, 146, .45);
+    --err: #d97882;
+    --err-bg: #422b30;
+    --err-ring: rgba(217, 120, 130, .45);
+
+    --canvas:
+        radial-gradient(1100px 700px at 10% -8%, #3f5474 0%, transparent 55%),
+        radial-gradient(1000px 800px at 108% 12%, #2f5261 0%, transparent 55%),
+        radial-gradient(900px 900px at 45% 120%, #4a4f6b 0%, transparent 60%),
+        linear-gradient(135deg, #232831 0%, #3b4252 100%);
+}
+
+:root[data-theme="dracula"] {
+    --terminal-variant: dark;
+    --background-color: #282a36;
+    --background-color-secondary: #2f3140;
+    --surface: #2f3140;
+    --surface-2: #21222c;
+    --text-color: #f8f8f2;
+    --text-muted: #8b93b8;
+    --border-color: #44475a;
+    --hover-background: #3a3d4e;
+    --active-background: #44475a;
+    --accent: #bd93f9;
+    --accent-contrast: #21222c;
+    --gradient: #7d5bbe;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .55);
+    --scrollbar: #44475a;
+    --focus-ring: rgba(189, 147, 249, .32);
+
+    --ok: #50fa7b;
+    --ok-bg: #1e3227;
+    --ok-ring: rgba(80, 250, 123, .35);
+    --warn: #ffb86c;
+    --warn-bg: #35291d;
+    --warn-ring: rgba(255, 184, 108, .35);
+    --err: #ff5555;
+    --err-bg: #351f22;
+    --err-ring: rgba(255, 85, 85, .35);
+
+    --canvas:
+        radial-gradient(1100px 700px at 10% -8%, #44306b 0%, transparent 55%),
+        radial-gradient(1000px 800px at 108% 12%, #6b2f52 0%, transparent 55%),
+        radial-gradient(900px 900px at 45% 120%, #2b3a5c 0%, transparent 60%),
+        linear-gradient(135deg, #1e1f29 0%, #383a4c 100%);
+}
+
+:root[data-theme="gruvbox"] {
+    --terminal-variant: dark;
+    --background-color: #282828;
+    --background-color-secondary: #32302f;
+    --surface: #32302f;
+    --surface-2: #1d2021;
+    --text-color: #ebdbb2;
+    --text-muted: #a89984;
+    --border-color: #504945;
+    --hover-background: #3c3836;
+    --active-background: #504945;
+    --accent: #fabd2f;
+    --accent-contrast: #282828;
+    --gradient: #d79921;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .55);
+    --scrollbar: #504945;
+    --focus-ring: rgba(250, 189, 47, .30);
+
+    --ok: #b8bb26;
+    --ok-bg: #2b2f18;
+    --ok-ring: rgba(184, 187, 38, .38);
+    --warn: #fe8019;
+    --warn-bg: #33261a;
+    --warn-ring: rgba(254, 128, 25, .38);
+    --err: #fb4934;
+    --err-bg: #341f1c;
+    --err-ring: rgba(251, 73, 52, .38);
+
+    --canvas:
+        radial-gradient(1100px 700px at 10% -8%, #4a3a1e 0%, transparent 55%),
+        radial-gradient(1000px 800px at 108% 12%, #3d2f22 0%, transparent 55%),
+        radial-gradient(900px 900px at 45% 120%, #503f2a 0%, transparent 60%),
+        linear-gradient(135deg, #1d2021 0%, #3c3836 100%);
+}
+
+:root[data-theme="solarized-light"] {
+    --terminal-variant: light;
+    --background-color: #fdf6e3;
+    --background-color-secondary: #fffdf6;
+    --surface: #fffdf6;
+    --surface-2: #f0e9d2;
+    --text-color: #002b36;
+    --text-muted: #6a7f86;
+    --border-color: #cfc6ac;
+    --hover-background: #f2ead4;
+    --active-background: #fffde0;
+    --accent: #58b500;
+    --accent-contrast: #ffffff;
+    --gradient: #527131;
+    --shadow: 0 12px 40px rgba(88, 110, 117, .20);
+    --scrollbar: #cfc6ac;
+    --focus-ring: rgba(88, 181, 0, .28);
+
+    --ok: #6b8f00;
+    --ok-bg: #eaf2d2;
+    --ok-ring: rgba(107, 143, 0, .32);
+    --warn: #a37400;
+    --warn-bg: #f9eec9;
+    --warn-ring: rgba(163, 116, 0, .32);
+    --err: #cb2b28;
+    --err-bg: #fbdedd;
+    --err-ring: rgba(203, 43, 40, .32);
+
+    --canvas:
+        radial-gradient(1100px 700px at 8% -5%, #bfe0d4 0%, transparent 55%),
+        radial-gradient(1000px 800px at 105% 10%, #f2dfae 0%, transparent 55%),
+        radial-gradient(900px 900px at 50% 120%, #d9d2b4 0%, transparent 60%),
+        linear-gradient(135deg, #fdf6e3 0%, #f6efd8 100%);
+}
+
+
+/* ===========================================================================
+   4. Base and reset
+   =========================================================================== */
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;               /* the app manages its own scroll regions */
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    background: var(--background-color);
+    color: var(--text-color);
+    -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar);
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+input,
+textarea,
+select {
+    width: 100%;
+    padding: 7px 9px;
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    color: var(--text-color);
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+textarea.mono {
+    font-family: var(--font-mono);
+    line-height: 1.55;
+    resize: vertical;
+}
+
+/* Every plain checkbox in the app is inline, but the base rule above sets
+   width:100% for text inputs — reset them once here rather than in a dozen
+   places. `.switch` is excluded: it is a styled pill with its own dimensions,
+   and this selector's specificity (0,1,1) would otherwise beat the class. */
+input[type="checkbox"]:not(.switch) {
+    width: auto;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+/* Keyboard focus must be visible on the div- and button-based controls that
+   act as tabs, cards and chips. */
+.settings-nav-item:focus-visible,
+.tl-tab:focus-visible,
+.chat-chip:focus-visible,
+.chat-jump:focus-visible,
+.theme-card:focus-visible,
+.ts-item:focus-visible,
+.split-menu-item:focus-visible,
+.chat-log:focus-visible,
+pre:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.settings-nav-item:focus-visible,
+.tl-tab:focus-visible,
+.chat-log:focus-visible {
+    outline-offset: -2px;           /* inset, so it is not clipped by a border */
+}
+
+kbd {
+    padding: 1px 5px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+}
+
+/* Icon font. The defensive declarations matter: an inherited letter-spacing or
+   text-transform turns ligatures back into literal words. */
+.material-icons {
+    font-family: "Material Symbols Rounded";
+    font-size: 20px;
+    line-height: 1;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    user-select: none;
+}
+
+.i-16 {
+    font-size: 16px;
+}
+
+/* Frosted panel. The plain background is a fallback: if color-mix() is
+   unsupported the whole declaration is dropped, which would otherwise leave
+   the panel fully transparent. */
+.glass {
+    background: var(--background-color-secondary);
+    background: color-mix(in srgb, var(--background-color-secondary) 62%, transparent);
+    border: 1px solid var(--border-color);
+    border: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+}
+
+
+/* ===========================================================================
+   5. Buttons
+
+     .btn                        base — text, optional leading icon
+     .btn--primary/ghost/danger  variants
+     .btn--icon                  square icon-only, 34px
+     .btn--sm                    square icon-only, 26px
+   =========================================================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 13px;
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-color);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: filter .15s, background .15s, color .15s, border-color .15s;
+}
+
+.btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.btn--primary {
+    color: #fff;
+    background: var(--gradient);
+}
+
+.btn--primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.btn--ghost {
+    border-color: var(--border-color);
+}
+
+.btn--ghost:hover:not(:disabled) {
+    background: var(--hover-background);
+    background: color-mix(in srgb, var(--hover-background) 80%, transparent);
+}
+
+.btn--danger {
+    color: var(--err);
+}
+
+.btn--danger:hover:not(:disabled) {
+    background: var(--err-bg);
+    background: color-mix(in srgb, var(--err-bg) 80%, transparent);
+}
+
+.btn--icon,
+.btn--sm {
+    padding: 0;
+    color: var(--text-muted);
+}
+
+.btn--icon {
+    width: 34px;
+    height: 34px;
+}
+
+.btn--sm {
+    width: 26px;
+    height: 26px;
+}
+
+.btn--icon:hover:not(:disabled),
+.btn--sm:hover:not(:disabled) {
+    color: var(--text-color);
+    background: var(--hover-background);
+    background: color-mix(in srgb, var(--hover-background) 80%, transparent);
+}
+
+.btn--icon.btn--danger:hover:not(:disabled),
+.btn--sm.btn--danger:hover:not(:disabled) {
+    color: var(--err);
+    background: var(--err-bg);
+}
+
+/* ===========================================================================
+   6. App shell
+   =========================================================================== */
+#terminus-app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--canvas);
+    background-attachment: fixed;
+}
+
+/* -- top bar -------------------------------------------------------------- */
+#top-bar {
+    position: absolute;
+    inset: 0 0 auto 0;
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 54px;
+    padding: 0 16px 0 20px;
+}
+
+#top-bar .btn--ghost {
+    padding: 8px;
+    border-color: transparent;
+}
+
+#top-bar .btn--ghost:hover {
+    background: var(--hover-background);
+    background: color-mix(in srgb, var(--hover-background) 60%, transparent);
+    border-color: color-mix(in srgb, var(--border-color) 40%, transparent);
+}
+
+#top-bar .material-icons {
+    font-size: 22px;
+    font-weight: 400;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.brand-logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    object-fit: contain;
+}
+
+.brand-text {
+    color: var(--text-color);
+    letter-spacing: .2px;
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* -- sidebar -------------------------------------------------------------- */
+#terminus-sidebar {
+    position: absolute;
+    top: 54px;
+    bottom: 10px;
+    left: 10px;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    width: 250px;
+    overflow: hidden;
+    border-radius: var(--radius);
+}
+
+.ts-top-actions {
+    padding: 10px 12px;
+}
+
+.ts-top-actions .btn {
+    width: 100%;
+}
+
+.ts-sep {
+    margin: 0;
+    border: none;
+    border-top: 1px solid var(--border-color);
+    border-top-color: color-mix(in srgb, var(--border-color) 55%, transparent);
+}
+
+.ts-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.ts-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 42px;
+    margin: 2px 0;
+    padding: 8px;
+    border-left: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.ts-item:hover {
+    background: var(--hover-background);
+    background: color-mix(in srgb, var(--hover-background) 80%, transparent);
+}
+
+.ts-item.active {
+    background: var(--active-background);
+    background: color-mix(in srgb, var(--active-background) 85%, transparent);
+    border-left-color: var(--accent);
+}
+
+.ts-item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Row actions appear on hover, and on keyboard focus — otherwise they are
+   unreachable without a mouse. */
+.ts-row-actions {
+    display: none;
+    flex-shrink: 0;
+    gap: 3px;
+}
+
+.ts-item:hover .ts-row-actions,
+.ts-item:focus-within .ts-row-actions {
+    display: flex;
+}
+
+#toolsBar {
+    padding: 6px;
+}
+
+#toolsBar .btn {
+    width: 100%;
+    border: none;
+}
+
+/* -- terminal panel ------------------------------------------------------- */
+#terminus-main {
+    position: absolute;
+    top: 54px;
+    right: 10px;
+    bottom: 10px;
+    left: 270px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius);
+}
+
+#terminal-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 9px;
+    height: 58px;
+    padding: 0 12px 0 16px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+    border-bottom-color: color-mix(in srgb, var(--border-color) 60%, transparent);
+}
+
+#terminal-header .chip-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.term-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+}
+
+#terminals {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    padding: 12px 14px;
+}
+
+/* All terminals are stacked and absolutely positioned; only .shown is
+   displayed. Keeping them mounted preserves scrollback and avoids re-fitting
+   on every switch. */
+#terminals > div[data-id] {
+    position: absolute;
+    inset: 12px 14px;
+    display: none;
+}
+
+#terminals > div[data-id].shown {
+    display: block;
+}
+
+/* !important is needed: xterm sets an inline background from its own theme
+   object, and the glass panel behind must show through. */
+#terminals > div[data-id] .xterm,
+#terminals > div[data-id] .xterm .xterm-screen {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent !important;
+}
+
+#terminals > div[data-id] .xterm .xterm-viewport {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    background: transparent !important;
+}
+
+#placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 100%;
+    color: var(--text-muted);
+}
+
+#placeholder .material-icons {
+    font-size: 46px;
+    opacity: .45;
+}
+
+#placeholder .ph-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* -- status dot ----------------------------------------------------------- */
+.circle {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    background: var(--text-muted);
+    border-radius: 50%;
+}
+
+.circle.active {
+    background: var(--ok);
+    box-shadow: 0 0 0 2px var(--ok-ring);
+}
+
+.circle.connecting {
+    background: var(--warn);
+    box-shadow: 0 0 0 2px var(--warn-ring);
+}
+
+.circle.idle {
+    background: var(--err);
+    box-shadow: 0 0 0 2px var(--err-ring);
+}
+
+/* The Assistant is running a command on this session. */
+.circle.ai {
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+    animation: pulse-ai 1.2s ease-in-out infinite;
+}
+
+/* -- toast ---------------------------------------------------------------- */
+#toast {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    z-index: 2000;
+    padding: 11px 17px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-color);
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(18px);
+    transition: opacity .2s, transform .2s;
+}
+
+#toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+
+/* ===========================================================================
+   7. Modals
+   =========================================================================== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8, 10, 16, .5);
+    backdrop-filter: blur(2px);
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.modal {
+    display: flex;
+    flex-direction: column;
+    max-width: 96vw;
+    max-height: 94vh;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    animation: modal-in .16s ease;
+}
+
+.modal-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+    margin-left: 10px;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+.modal-body {
+    padding: 12px;
+    overflow: auto;
+}
+
+.modal-footer {
+    display: flex;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* -- split button: primary action + dropdown ------------------------------ */
+.split-btn {
+    position: relative;
+    display: inline-flex;
+}
+
+.split-btn-main {
+    width: 180px;
+    justify-content: flex-start;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-color: transparent;
+}
+
+.split-btn-arrow {
+    width: 28px;
+    padding: 0;
+    margin-left: -1px;              /* collapse the doubled border */
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.split-btn-arrow .material-icons {
+    color: var(--text-muted);
+}
+
+.split-btn-arrow:hover .material-icons {
+    color: var(--text-color);
+}
+
+.split-menu {
+    position: absolute;
+    bottom: calc(100% + 5px);       /* opens upward — it sits in a footer */
+    left: 0;
+    z-index: 1200;
+    display: none;
+    min-width: 210px;
+    padding: 5px;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+}
+
+.split-menu.open {
+    display: block;
+}
+
+.split-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.split-menu-item:hover {
+    background: var(--hover-background);
+}
+
+.split-menu-item .check {
+    margin-left: auto;
+    color: var(--accent);
+    opacity: 0;
+}
+
+.split-menu-item.active {
+    color: var(--accent);
+}
+
+.split-menu-item.active .check {
+    opacity: 1;
+}
+
+
+/* ===========================================================================
+   8. Forms
+   =========================================================================== */
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.form-row label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12px;
+}
+
+.form-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.form-group {
+    min-width: 0;
+    margin: 0 0 14px;
+    padding: 14px 14px 4px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.form-group:last-of-type {
+    margin-bottom: 0;
+}
+
+.form-group-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 7px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.form-group-title .material-icons {
+    font-size: 16px;
+    color: var(--accent);
+}
+
+.form-group-badge {
+    margin-left: 2px;
+    padding: 1px 7px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    color: var(--ok);
+    background: var(--ok-bg);
+    border-radius: 10px;
+}
+
+/* -- capsule switch ------------------------------------------------------- */
+.switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .18s, border-color .18s;
+}
+
+.switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: transform .18s, background .18s;
+}
+
+.switch:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.switch:checked::after {
+    background: #fff;
+    transform: translateX(16px);
+}
+
+.switch:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* Label and hint on the left, switch pinned right. */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+}
+
+.toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.toggle-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.toggle-row .switch {
+    margin-left: auto;
+}
+
+/* -- test-connection result ---------------------------------------------- */
+.test-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.test-result {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+}
+
+.test-result.show {
+    display: flex;
+}
+
+.test-result.ok {
+    color: var(--ok);
+    background: var(--ok-bg);
+}
+
+.test-result.fail {
+    color: var(--err);
+    background: var(--err-bg);
+}
+
+.test-result.busy {
+    color: var(--warn);
+    background: var(--warn-bg);
+}
+
+
+/* ===========================================================================
+   9. Settings modal
+   =========================================================================== */
+.settings-shell {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 184px;
+    background: var(--surface-2);
+    border-right: 1px solid var(--border-color);
+}
+
+.settings-nav-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    padding: 6px 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-nav-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding: 6px;
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 6px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+}
+
+.settings-nav-item:hover {
+    color: var(--text-color);
+    background: var(--hover-background);
+}
+
+.settings-nav-item.active {
+    color: var(--accent);
+    background: var(--active-background);
+}
+
+.settings-pane {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.settings-pane-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 50px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-pane-title {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.settings-pane-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.settings-page {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.settings-page.active {
+    display: flex;
+}
+
+.pane-toolbar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    height: 54px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.pane-toolbar input {
+    flex: 1;
+}
+
+.pane-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px;
+}
+
+/* -- appearance page ------------------------------------------------------ */
+.appearance-label {
+    margin-bottom: 10px;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.theme-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.theme-card {
+    overflow: hidden;
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.theme-card.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.theme-swatch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 62px;
+    background-size: cover;
+}
+
+.sw-dots {
+    display: flex;
+    gap: 7px;
+    padding: 7px 10px;
+    background: rgba(255, 255, 255, .14);
+    border-radius: 6px;
+    backdrop-filter: blur(6px);
+}
+
+.sw-dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 1.5px rgba(255, 255, 255, .35),
+        0 1px 3px rgba(0, 0, 0, .35);
+}
+
+.theme-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 11px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    background: var(--surface);
+    border-top: 1px solid var(--border-color);
+}
+
+.theme-card-foot .material-icons {
+    color: var(--accent);
+    opacity: 0;
+}
+
+.theme-card.active .theme-card-foot .material-icons {
+    opacity: 1;
+}
+
+.font-preview {
+    height: 100px;
+    margin: 12px 0;
+    padding: 13px 15px;
+    font-size: var(--font-size-term);
+    line-height: 1.6;
+    white-space: pre;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+
+/* ===========================================================================
+   10. Tables
+   =========================================================================== */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    height: 52px;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Sticky header uses --surface, matching the modal it sits in — the page
+   background would be a visibly different shade. */
+.data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--surface);
+    border-top: 1px solid var(--border-color);
+}
+
+.cell-name {
+    font-weight: 600;
+}
+
+.type-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.type-icon.jump {
+    color: var(--accent);
+}
+
+.type-icon.direct {
+    color: var(--text-muted);
+}
+
+.row-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.col-actions {
+    width: 100px;
+}
+
+.col-type {
+    width: 200px;
+    text-align: center;
+}
+
+.fname {
+    max-width: 380px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-empty {
+    height: 64px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+
+/* ===========================================================================
+   11. Tools modal — shared panel skeleton
+
+   Broadcast and Assistant use one four-band layout, so switching tabs never
+   shifts anything:
+
+       tabs → head → body (the only band that flexes) → status → foot
+
+   The session picker's head matches --tl-tabs-h and its foot matches
+   --tl-status-h, so the two columns align top and bottom.
+   =========================================================================== */
+#toolsDialog {
+    width: min(1320px, 95vw);
+    height: 84vh;
+}
+
+.tl-shell {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+}
+
+/* -- left: session picker ------------------------------------------------- */
+.tl-sessions {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 250px;
+    min-height: 0;
+    border-right: 1px solid var(--border-color);
+}
+
+.tl-sessions-head {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    height: var(--tl-tabs-h);
+    padding: 0 10px 0 16px;
+    margin-left: 8px;
+}
+
+.tl-sessions-head input[type="text"] {
+    flex: 1;
+}
+
+.tl-check-all {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.tl-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px;
+    background: var(--background-color);
+    margin: 4px 10px 10px 10px;
+    border-radius: 6px;
+}
+
+.tl-sessions-foot {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: var(--tl-status-h);
+    padding: 0 12px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border-top: 1px solid var(--border-color);
+}
+
+.tl-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 4px;
+    padding: 10px 6px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.tl-item:hover {
+    background: var(--hover-background);
+}
+
+.tl-item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-empty {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* -- right: tabbed work area --------------------------------------------- */
+.tl-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.tl-tabs {
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+    height: var(--tl-tabs-h);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tl-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 15px;
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color .12s, border-color .12s;
+}
+
+.tl-tab:hover {
+    color: var(--text-color);
+}
+
+.tl-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.tl-panel {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tl-panel.active {
+    display: flex;
+}
+
+.tl-spacer {
+    flex: 1;
+}
+
+/* -- band 1: head -------------------------------------------------------- */
+.tl-head {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    height: var(--tl-head-h);
+    padding: 0 12px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tl-head > .material-icons {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+/* Scope text truncates; the controls beside it keep their size. */
+.tl-head > span:not(.tl-spacer):not(.material-icons) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* -- band 2: body (flexes) ----------------------------------------------- */
+.tl-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding: 8px;
+}
+
+/* -- band 3: status ------------------------------------------------------ */
+.tl-status {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    height: var(--tl-status-h);
+    padding: 0 12px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border-top: 1px solid var(--border-color);
+    transition: color .15s, background .15s;
+}
+
+.tl-status-icon {
+    flex-shrink: 0;
+}
+
+.tl-status--idle .tl-status-icon {
+    color: var(--text-muted);
+}
+
+.tl-status--busy,
+.tl-status--busy .tl-status-icon {
+    color: var(--accent);
+}
+
+.tl-status--ok,
+.tl-status--ok .tl-status-icon {
+    color: var(--ok);
+}
+
+.tl-status--error,
+.tl-status--error .tl-status-icon {
+    color: var(--err);
+}
+
+.tl-status--error {
+    background: var(--err-bg);
+}
+
+/* -- band 4: foot -------------------------------------------------------- */
+.tl-foot {
+    display: flex;
+    flex-shrink: 0;
+    align-items: stretch;
+    gap: 10px;
+    min-height: var(--tl-foot-h);
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.tl-foot-hint {
+    flex: 1;
+    align-self: center;
+    line-height: 1.55;
+}
+
+.tl-input {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.55;
+    resize: none;
+}
+
+.tl-send {
+    flex-shrink: 0;
+    min-width: 104px;
+}
+
+/* Assistant: stretches to match the composer beside it exactly. */
+.tl-send--icon {
+    min-width: 52px;
+    padding: 0;
+}
+
+/* Broadcast: nothing beside it, so keep a normal-height button. */
+#tlBroadcast .tl-send {
+    align-self: center;
+    height: 36px;
+}
+
+/* The Broadcast textarea fills its band; the Assistant composer does not. */
+#bcCommands {
+    height: 100%;
+}
+
+/* ===========================================================================
+   12. Assistant — conversation log
+   =========================================================================== */
+.chat-log {
+    gap: 12px;
+    overflow-y: auto;
+    padding: 16px 18px;
+}
+
+/* Flex children must not shrink: the log scrolls, it does not compress.
+   Without this an overflowing log squashes every card, and .ap-card's
+   overflow:hidden turns that into an unusable one-line sliver. */
+.chat-log > * {
+    flex: 0 0 auto;
+}
+
+/* The empty state is the one child that should fill and centre. */
+.chat-log > .chat-empty {
+    flex: 1 1 auto;
+}
+
+.chat-auto {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.chat-msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    font-size: var(--font-size-term);
+    line-height: 1.65;
+    border-radius: var(--radius-md);
+}
+
+.chat-user {
+    align-self: flex-end;
+    background: var(--active-background);
+    border: 1px solid var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* The assistant reply is document-like rather than a speech bubble: full
+   width, no chrome, so tables and code blocks have room. */
+.chat-assistant {
+    align-self: flex-start;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    background: transparent;
+}
+
+/* -- markdown output (marked + DOMPurify) --------------------------------- */
+.chat-msg h1,
+.chat-msg h2 {
+    margin: 16px 0 8px;
+    padding-bottom: 5px;
+    font-size: 1.05em;
+    font-weight: 700;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-msg h1:first-child,
+.chat-msg h2:first-child {
+    margin-top: 0;
+}
+
+.chat-msg h3 {
+    margin: 13px 0 6px;
+    font-size: 1em;
+    font-weight: 700;
+}
+
+.chat-msg h4,
+.chat-msg h5,
+.chat-msg h6 {
+    margin: 12px 0 5px;
+    font-size: .96em;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.chat-msg p {
+    margin: 0 0 10px;
+}
+
+.chat-msg p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-msg ul,
+.chat-msg ol {
+    margin: 0 0 10px;
+    padding-left: 22px;
+}
+
+/* Nested lists hug their parent item. */
+.chat-msg ul ul,
+.chat-msg ul ol,
+.chat-msg ol ul,
+.chat-msg ol ol {
+    margin: 4px 0 0;
+}
+
+.chat-msg li {
+    margin-bottom: 4px;
+}
+
+.chat-msg hr {
+    height: 1px;
+    margin: 16px 0;
+    background: var(--border-color);
+    border: none;
+}
+
+.chat-msg blockquote {
+    margin: 0 0 12px;
+    padding: 2px 0 2px 12px;
+    color: var(--text-muted);
+    border-left: 3px solid var(--accent);
+}
+
+.chat-msg blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-msg code {
+    padding: 1px 5px;
+    font-family: var(--font-mono);
+    font-size: .93em;
+    background: var(--surface-2);
+    border-radius: 4px;
+}
+
+.chat-msg pre {
+    margin: 0 0 12px;
+    padding: 11px 13px;
+    overflow-x: auto;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.chat-msg pre code {
+    padding: 0;
+    background: none;
+}
+
+/* display:block so a wide table scrolls rather than stretching the panel. */
+.chat-msg table {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 0 12px;
+    overflow-x: auto;
+    font-size: .96em;
+    border-collapse: collapse;
+}
+
+.chat-msg th,
+.chat-msg td {
+    padding: 6px 9px;
+    text-align: left;
+    border: 1px solid var(--border-color);
+}
+
+.chat-msg th {
+    font-weight: 700;
+    background: var(--surface-2);
+}
+
+.chat-msg strong {
+    font-weight: 700;
+}
+
+.chat-msg del {
+    opacity: .6;
+}
+
+.chat-msg a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.chat-msg a:hover {
+    text-decoration-thickness: 2px;
+}
+
+/* GFM task lists. */
+.chat-msg input[type="checkbox"] {
+    margin: 0 6px 0 0;
+    vertical-align: middle;
+}
+
+.chat-msg li:has(> input[type="checkbox"]) {
+    list-style: none;
+}
+
+.chat-msg ul:has(> li > input[type="checkbox"]) {
+    padding-left: 4px;
+}
+
+/* Streaming caret — appended as a DOM node, so it survives sanitising. */
+.chat-msg .cursor {
+    display: inline-block;
+    width: 7px;
+    height: 1em;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: blink 1s step-end infinite;
+}
+
+/* Shown when marked or DOMPurify failed to load. */
+.md-fallback {
+    margin: 0;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    white-space: pre-wrap;
+    color: var(--warn);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn);
+    border-radius: var(--radius-sm);
+}
+
+/* -- empty state ---------------------------------------------------------- */
+.chat-empty {
+    max-width: 480px;
+    margin: auto;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.chat-empty > .material-icons {
+    font-size: 40px;
+    opacity: .4;
+}
+
+.chat-empty-title {
+    margin: 10px 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.chat-empty-hint {
+    line-height: 1.6;
+}
+
+.chat-examples {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.chat-chip {
+    padding: 9px 13px;
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+}
+
+.chat-chip:hover {
+    background: var(--hover-background);
+    border-color: var(--accent);
+}
+
+/* -- sticky-follow affordance --------------------------------------------- */
+/* Positioned against the panel, above the status and foot bands. */
+#tlAssistant {
+    position: relative;
+}
+
+.chat-jump {
+    position: absolute;
+    right: 22px;
+    bottom: calc(var(--tl-status-h) + var(--tl-foot-h) + 14px);
+    z-index: 5;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-color);
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+}
+
+.chat-jump.show {
+    display: inline-flex;
+}
+
+.chat-jump:hover {
+    background: var(--hover-background);
+    border-color: var(--accent);
+}
+
+.chat-jump .material-icons {
+    color: var(--accent);
+}
+
+/* -- provider capability gate --------------------------------------------- */
+.chat-gate {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 12px 14px;
+    font-size: var(--font-size-sm);
+    line-height: 1.55;
+    color: var(--warn);
+    background: var(--warn-bg);
+    border-top: 1px solid var(--border-color);
+}
+
+
+/* ===========================================================================
+   Approval card
+
+   Accented and ring-shadowed on purpose: nothing runs on a device until the
+   user acts on this, so it must not read as passive output.
+   =========================================================================== */
+.ap-card {
+    width: 100%;
+    overflow: hidden;
+    background: var(--surface-2);
+    border: 1.5px solid var(--accent);
+    border-radius: var(--radius-md);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.ap-card--rejected {
+    border-color: var(--err);
+    box-shadow: none;
+}
+
+/* Answered, superseded or abandoned — recedes without disappearing. */
+.ap-card.ap-settled {
+    border-color: var(--border-color);
+    box-shadow: none;
+    opacity: .8;
+}
+
+.ap-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 13px;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ap-head .material-icons {
+    color: var(--accent);
+}
+
+.ap-card--rejected .ap-head .material-icons {
+    color: var(--err);
+}
+
+.ap-title {
+    flex-shrink: 0;
+}
+
+.ap-count {
+    margin-left: auto;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.ap-reason {
+    padding: 10px 13px;
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Capped so a ten-command plan cannot push the actions out of reach. */
+.ap-rows {
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 6px 8px;
+}
+
+.ap-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+}
+
+.ap-row:hover {
+    background: var(--hover-background);
+}
+
+.ap-alias {
+    flex-shrink: 0;
+    min-width: 30px;
+    padding: 2px 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--accent);
+    background: var(--active-background);
+    border-radius: 4px;
+}
+
+.ap-host {
+    flex-shrink: 0;
+    width: 130px;
+    overflow: hidden;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Editable: the server re-validates every command, so an edit cannot
+   escalate privilege. */
+.ap-cmd {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.risk-badge {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    white-space: nowrap;
+    border-radius: 10px;
+}
+
+.risk-read_only {
+    color: var(--ok);
+    background: var(--ok-bg);
+    padding: 6px;
+    border: 1px solid var(--ok);
+}
+
+.risk-mutating {
+    color: var(--warn);
+    background: var(--warn-bg);
+}
+
+.risk-destructive,
+.risk-forbidden,
+.risk-unknown {
+    color: var(--err);
+    background: var(--err-bg);
+}
+
+.ap-blocked {
+    padding: 8px 13px 10px;
+    background: var(--err-bg);
+    background: color-mix(in srgb, var(--err-bg) 55%, transparent);
+    border-top: 1px solid var(--border-color);
+}
+
+.ap-blocked-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--err);
+}
+
+.ap-blocked-row {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    padding: 3px 0;
+    font-size: var(--font-size-xs);
+}
+
+.ap-strike {
+    font-family: var(--font-mono);
+    text-decoration: line-through;
+    opacity: .75;
+}
+
+.ap-blocked-why {
+    color: var(--text-muted);
+}
+
+/* Only rendered once the server's risk ceiling is raised past read_only. */
+.ap-confirm {
+    padding: 11px 13px;
+    background: var(--warn-bg);
+    border-top: 1px solid var(--border-color);
+}
+
+.ap-confirm label {
+    display: block;
+    margin-bottom: 7px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--warn);
+}
+
+.ap-confirm code {
+    padding: 1px 6px;
+    font-family: var(--font-mono);
+    background: var(--surface);
+    border-radius: 3px;
+}
+
+.ap-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 13px;
+    border-top: 1px solid var(--border-color);
+}
+
+.ap-note {
+    flex: 1;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+
+/* ===========================================================================
+   Execution progress
+   =========================================================================== */
+.ex-card {
+    width: 100%;
+    overflow: hidden;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.ex-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ex-rows {
+    padding: 4px 6px;
+}
+
+.ex-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 7px;
+    border-radius: var(--radius-sm);
+}
+
+.ex-row:hover {
+    background: var(--hover-background);
+}
+
+.ex-status {
+    flex-shrink: 0;
+    width: 18px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Status classes mirror the executor's result statuses. */
+.ex-ok {
+    color: var(--ok);
+}
+
+.ex-error,
+.ex-session_gone,
+.ex-blocked {
+    color: var(--err);
+}
+
+.ex-timeout,
+.ex-busy,
+.ex-wrong_mode,
+.ex-locked {
+    color: var(--warn);
+}
+
+.ex-cancelled,
+.ex-skipped {
+    color: var(--text-muted);
+}
+
+.ex-alias {
+    flex-shrink: 0;
+    min-width: 30px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.ex-cmd {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ex-meta {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Dotted underline signals a tooltip carrying the failure detail. */
+.ex-row--detail .ex-meta {
+    text-decoration: underline dotted;
+    cursor: help;
+}
+
+/* Raw captured output, collapsed by default — set with textContent, never
+   innerHTML, because it is unsanitised device output. */
+.ex-output {
+    display: none;
+    max-height: 320px;
+    margin: 0 7px 7px;
+    padding: 10px 12px;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.ex-output.open {
+    display: block;
+}
+
+
+/* ===========================================================================
+   13. AI settings and disclaimer
+   =========================================================================== */
+#aiConfigFields .form-row:last-child {
+    margin-bottom: 12px;
+}
+
+/* Checkbox-type provider settings render as a toggle row inside the form. */
+.ai-toggle-row {
+    margin-bottom: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ai-toggle-row:last-child {
+    border-bottom: none;
+}
+
+/* Whether the configured provider can drive the Assistant. */
+.cap-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin-top: 6px;
+    padding: 7px 10px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.5;
+    border-radius: var(--radius-sm);
+}
+
+.cap-ok {
+    color: var(--ok);
+    background: var(--ok-bg);
+}
+
+.cap-warn {
+    color: var(--warn);
+    background: var(--warn-bg);
+}
+
+/* -- disclaimer: plain modal, no header or footer chrome ------------------ */
+.ai-disclaimer-body {
+    padding: 22px 24px 20px;
+}
+
+.ai-disclaimer-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 14px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.ai-disclaimer-title .material-icons {
+    color: var(--accent);
+}
+
+.ai-disclaimer-body p {
+    margin: 0 0 12px;
+    line-height: 1.6;
+}
+
+.ai-disclaimer-body ul {
+    margin: 0 0 18px;
+    padding-left: 20px;
+    line-height: 1.7;
+    color: var(--text-muted);
+}
+
+.ai-disclaimer-body ul strong {
+    color: var(--text-color);
+}
+
+.ai-disclaimer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+
+/* ===========================================================================
+   14. Performance mode
+
+   For a weak GPU, VDI, or a streamed desktop: drops translucency, blur and
+   the gradient canvas — the three things that cost most when there is no
+   hardware acceleration and every frame is being encoded.
+   =========================================================================== */
+[data-perf="lite"] #terminus-app {
+    background: var(--background-color);
+}
+
+[data-perf="lite"] .glass {
+    background: var(--background-color-secondary);
+    border-color: var(--border-color);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-perf="lite"] .modal-overlay {
+    backdrop-filter: none;
+}
+
+[data-perf="lite"] .modal {
+    animation: none;
+}
+
+[data-perf="lite"] .sw-dots {
+    backdrop-filter: none;
+}
+
+/* An opaque terminal surface lets xterm take its fast rendering path. */
+[data-perf="lite"] #terminals > div[data-id] .xterm,
+[data-perf="lite"] #terminals > div[data-id] .xterm .xterm-viewport,
+[data-perf="lite"] #terminals > div[data-id] .xterm .xterm-screen {
+    background: var(--background-color-secondary) !important;
+}
+
+
+/* ===========================================================================
+   15. Animations
+   =========================================================================== */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@keyframes pulse-ai {
+    50% {
+        opacity: .45;
+    }
+}
+
+@keyframes modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(.99);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Disable the four animations that actually exist. The previous rule targeted
+   #terminus-app, which has none. */
+@media (prefers-reduced-motion: reduce) {
+    .spin,
+    .modal,
+    .chat-msg .cursor,
+    .circle.ai {
+        animation: none;
+    }
+}
+
+
+/* ===========================================================================
+   Narrow windows
+
+   The desktop launcher sets min_size 1024×640, but a browser tab can go
+   smaller. Collapse the sidebar rather than crushing the terminal.
+   =========================================================================== */
+@media (max-width: 820px) {
+    #terminus-sidebar {
+        width: 190px;
+    }
+
+    #terminus-main {
+        left: 210px;
+    }
+
+    #toolsDialog {
+        width: 96vw;
+        height: 90vh;
+    }
+
+    .tl-sessions {
+        width: 190px;
+    }
+
+    .theme-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Shown when the socket handshake is rejected: the page predates the running
+   server, so its launch token is stale and reconnecting cannot succeed. */
+#staleBanner {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--warn);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn);
+    border-top: none;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    box-shadow: var(--shadow);
+    transform: translateX(-50%);
+}
+
+#staleBanner .btn {
+    padding: 4px 12px;
+}

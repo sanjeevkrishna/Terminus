@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<!-- Terminus — floating glass panels on a gradient canvas.
+     File path: terminus/templates/terminus.html -->
+<html lang="en" data-theme="{{ theme }}">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="color-scheme" content="light dark"/>
+    <title>Terminus</title>
+
+   <link rel="icon" href="{{ url_for('static', filename='img/terminus.ico') }}"/>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/xterm.min.css') }}"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&display=swap"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}"/>
+</head>
+<body>
+
+<div id="terminus-app">
+
+    <!-- ===== Top bar ===== -->
+    <header id="top-bar">
+        <div class="brand">
+            <img class="brand-logo" alt=""
+                 src="{{ url_for('static', filename='img/terminus.png') }}"/>
+            <span class="brand-text">Terminus</span>
+        </div>
+        <div class="top-actions">
+            <button class="btn btn--ghost" id="logsBtn"
+                    title="Session logs" aria-label="Session logs">
+                <span class="material-icons">folder</span>
+            </button>
+            <button class="btn btn--ghost" id="settingsBtn"
+                    title="Settings" aria-label="Settings">
+                <span class="material-icons">settings</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ===== Floating sidebar ===== -->
+    <aside id="terminus-sidebar" class="glass" aria-label="Sessions">
+        <div class="ts-top-actions">
+            <button class="btn btn--primary" id="newSessionBtn">
+                <span class="material-icons">add_ad</span><span>New Session</span>
+            </button>
+        </div>
+        <hr class="ts-sep"/>
+        <div id="openList" class="ts-list" role="list"
+             aria-label="Open sessions"></div>
+        <div id="toolsBar">
+            <button class="btn btn--ghost" id="toolsBtn">
+                <span class="material-icons">handyman</span><span>Tools</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- ===== Floating terminal panel ===== -->
+    <section id="terminus-main" class="glass" aria-label="Terminal">
+        <div id="terminal-header">
+            <span class="circle idle" id="chipCircle"></span>
+            <span class="chip-name" id="chipTitle">No active session</span>
+            <span class="term-actions" id="termActions" style="display:none;">
+                <button class="btn btn--icon" id="askAiBtn" data-ai-gated
+                        title="Ask the Assistant about this session"
+                        aria-label="Ask the Assistant about this session">
+                    <span class="material-icons">auto_awesome</span>
+                </button>
+                <button class="btn btn--icon" id="openLogBtn"
+                        title="Open log" aria-label="Open session log">
+                    <span class="material-icons">open_in_new</span>
+                </button>
+                <button class="btn btn--icon btn--danger" id="closeBtn"
+                        title="Close session" aria-label="Close session">
+                    <span class="material-icons">close</span>
+                </button>
+            </span>
+        </div>
+        <div id="terminals">
+            <div id="placeholder">
+                <span class="material-icons">dns</span>
+                <div class="ph-title">No active session</div>
+                <div>Click “New Session” to connect to a device</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+
+<!-- ===================================================================== -->
+<!-- New Session modal                                                     -->
+<!-- ===================================================================== -->
+<div class="modal-overlay" id="newSessionModal">
+    <div class="modal" style="width:600px;" role="dialog" aria-modal="true"
+         aria-labelledby="newSessionTitle">
+        <div class="modal-header">
+            <div class="modal-title" id="newSessionTitle">New Session</div>
+            <button class="btn btn--icon" id="closeNewSessionModal"
+                    title="Close" aria-label="Close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <form id="newSessionForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <label for="deviceHost">Devices</label>
+                    <textarea id="deviceHost" class="mono" rows="6" required
+                              style="height:200px; resize:none;"
+                              placeholder="router1.example.com&#10;10.0.0.5"></textarea>
+                </div>
+                <div class="form-row">
+                    <label for="connectorSelect">Connector</label>
+                    <select id="connectorSelect" required>
+                        <option value="">— Select connector —</option>
+                    </select>
+                    <span class="form-hint">
+                        No connectors? Add one under
+                        <strong>Settings → Connectors</strong>.
+                    </span>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <div class="split-btn" id="shellSplit">
+                    <button type="button" class="btn btn--ghost split-btn-main"
+                            id="openShellBtn" title="Open a local shell">
+                        <span id="shellLabel">Local Shell</span>
+                    </button>
+                    <button type="button" class="btn btn--ghost split-btn-arrow"
+                            id="shellMenuBtn" title="Choose shell"
+                            aria-label="Choose shell" aria-haspopup="true"
+                            aria-expanded="false">
+                        <span class="material-icons i-16">expand_more</span>
+                    </button>
+                    <div class="split-menu" id="shellMenu" role="menu"></div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="btn btn--ghost"
+                            id="cancelNewSession">Cancel</button>
+                    <button type="submit" class="btn btn--primary">
+                        <span class="material-icons">bolt</span>Open
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ===================================================================== -->
+<!-- Tools modal — Broadcast + Assistant                                    -->
+<!--                                                                        -->
+<!-- Both panels share one four-band skeleton so the tabs have identical     -->
+<!-- vertical rhythm:  head → body (flexes) → status → foot                  -->
+<!-- ===================================================================== -->
+<div class="modal-overlay" id="toolsModal">
+    <div class="modal" id="toolsDialog" role="dialog" aria-modal="true"
+         aria-labelledby="toolsTitle">
+        <div class="modal-header">
+            <div class="modal-title" id="toolsTitle">Tools</div>
+            <button class="btn btn--icon" id="closeTools"
+                    title="Close" aria-label="Close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+
+        <div class="modal-body" style="padding:0; flex:1; min-height:0;">
+            <div class="tl-shell">
+
+                <!-- Shared session picker: one selection, both tabs -->
+                <div class="tl-sessions">
+                    <div class="tl-sessions-head">
+                        <label class="tl-check-all" title="Select / deselect all">
+                            <input type="checkbox" id="tlSelectAll"
+                                   aria-label="Select or deselect all sessions"/>
+                        </label>
+                        <input id="tlFilter" type="text"
+                               placeholder="Filter sessions…"
+                               aria-label="Filter sessions"/>
+                    </div>
+                    <div class="tl-list" id="tlList" role="group"
+                         aria-label="Selectable sessions"></div>
+                    <div class="tl-sessions-foot" id="tlCount">0 selected</div>
+                </div>
+
+                <!-- Tabbed work area -->
+                <div class="tl-main">
+                    <div class="tl-tabs" role="tablist" aria-label="Tools">
+                        <button class="tl-tab active" id="tlBroadcastTab"
+                                data-tab="tlBroadcast" role="tab"
+                                aria-selected="true" aria-controls="tlBroadcast">
+                            <span class="material-icons i-16">campaign</span>Broadcast
+                        </button>
+                        <button class="tl-tab" id="tlAssistantTab"
+                                data-tab="tlAssistant" role="tab"
+                                aria-selected="false" aria-controls="tlAssistant"
+                                data-ai-gated>
+                            <span class="material-icons i-16">auto_awesome</span>Assistant
+                        </button>
+                    </div>
+
+                    <!-- ---- Broadcast tab ---- -->
+                    <div class="tl-panel active" id="tlBroadcast" role="tabpanel"
+                         aria-labelledby="tlBroadcastTab">
+
+                        <div class="tl-head">
+                            <span class="material-icons i-16">dns</span>
+                            <span id="bcScope">No sessions selected</span>
+                            <span class="tl-spacer"></span>
+                            <button class="btn btn--sm" id="bcClearBtn"
+                                    title="Clear commands"
+                                    aria-label="Clear commands">
+                                <span class="material-icons i-16">backspace</span>
+                            </button>
+                        </div>
+
+                        <div class="tl-body">
+                            <textarea id="bcCommands" class="mono tl-input"
+                                      spellcheck="false"
+                                      aria-label="Commands to broadcast"
+                                      placeholder="conf t&#10;interface loopback0&#10; description set-by-terminus&#10;end"></textarea>
+                        </div>
+
+                        <div class="tl-status tl-status--idle" id="bcStatus"
+                             role="status" aria-live="polite">
+                            <span class="material-icons i-16 tl-status-icon">edit_note</span>
+                            <span id="bcStatusText">No commands entered</span>
+                        </div>
+
+                        <div class="tl-foot">
+                            <span class="form-hint tl-foot-hint">
+                                Sent verbatim to every selected session, in order.
+                                Paste multi-line config blocks directly.
+                                <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send.
+                            </span>
+                            <button type="button" class="btn btn--primary tl-send"
+                                    id="bcSend">
+                                <span class="material-icons">send</span>Send
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ---- Assistant tab ---- -->
+                    <div class="tl-panel" id="tlAssistant" role="tabpanel"
+                         aria-labelledby="tlAssistantTab">
+
+                        <div class="tl-head">
+                            <span class="material-icons i-16">dns</span>
+                            <span id="chatScope">No sessions selected</span>
+                            <span class="tl-spacer"></span>
+                            <label class="chat-auto"
+                                   title="Run read-only commands without asking each time. Cleared when this panel closes.">
+                                <input type="checkbox" id="chatAutoApprove"/>
+                                <span>Auto-approve read-only</span>
+                            </label>
+                            <button class="btn btn--sm" id="chatResetBtn"
+                                    title="Clear conversation"
+                                    aria-label="Clear conversation">
+                                <span class="material-icons i-16">restart_alt</span>
+                            </button>
+                        </div>
+
+                        <!-- No aria-live here: streaming re-renders the whole
+                             bubble each frame, which would flood a screen
+                             reader. State changes are announced by #chatStatus. -->
+                        <div class="tl-body chat-log" id="chatLog" tabindex="0"
+                             aria-label="Conversation">
+                            <div class="chat-empty" id="chatEmpty">
+                                <span class="material-icons">auto_awesome</span>
+                                <div class="chat-empty-title">
+                                    Ask about the selected sessions
+                                </div>
+                                <div class="chat-empty-hint">
+                                    The Assistant reads each session's recent output
+                                    and can propose read-only commands. Nothing runs
+                                    without your approval.
+                                </div>
+                                <div class="chat-examples">
+                                    <button class="chat-chip">Give me a discovery report for the selected devices</button>
+                                    <button class="chat-chip">Compare these devices and highlight differences</button>
+                                    <button class="chat-chip">Are there any interface errors I should worry about?</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="chat-jump" id="chatJumpBtn"
+                                title="Jump to latest">
+                            <span class="material-icons i-16">arrow_downward</span>
+                            <span>Latest</span>
+                        </button>
+
+                        <div class="tl-status tl-status--idle" id="chatStatus"
+                             role="status" aria-live="polite">
+                            <span class="material-icons i-16 tl-status-icon">check_circle</span>
+                            <span id="chatStatusText">Ready</span>
+                            <span class="tl-spacer"></span>
+                            <button class="btn btn--sm btn--danger" id="chatStopBtn"
+                                    title="Stop" aria-label="Stop"
+                                    style="display:none;">
+                                <span class="material-icons i-16">stop</span>
+                            </button>
+                        </div>
+
+                        <div class="tl-foot">
+                            <textarea id="chatInput" class="tl-input" rows="2"
+                                      spellcheck="false"
+                                      aria-label="Ask the Assistant"
+                                      placeholder="Ask about the selected sessions…  (Ctrl+Enter to send)"></textarea>
+                            <button class="btn btn--primary tl-send tl-send--icon"
+                                    id="chatSendBtn" title="Send" aria-label="Send">
+                                <span class="material-icons">send</span>
+                            </button>
+                        </div>
+                        <div class="chat-gate" id="chatGate" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ===================================================================== -->
+<!-- Settings modal                                                        -->
+<!-- ===================================================================== -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal" style="width:1100px; height:90vh;" role="dialog"
+         aria-modal="true" aria-labelledby="settingsPaneTitle">
+        <div class="settings-shell">
+
+            <!-- Column 1: nav -->
+            <nav class="settings-nav">
+                <div class="settings-nav-header">
+                    <span class="material-icons">settings</span><span>Settings</span>
+                </div>
+                <div class="settings-nav-content" role="tablist"
+                     aria-orientation="vertical" aria-label="Settings sections">
+                    <div class="settings-nav-item active" role="tab" tabindex="0"
+                         aria-selected="true" aria-controls="appearancePage"
+                         data-page="appearancePage" data-title="Appearance">
+                        <span class="material-icons">palette</span><span>Appearance</span>
+                    </div>
+                    <div class="settings-nav-item" role="tab" tabindex="0"
+                         aria-selected="false" aria-controls="connectorsPage"
+                         data-page="connectorsPage" data-title="Connectors">
+                        <span class="material-icons">dns</span><span>Connectors</span>
+                    </div>
+                    <div class="settings-nav-item" role="tab" tabindex="0"
+                         aria-selected="false" aria-controls="aiPage"
+                         data-page="aiPage" data-title="AI">
+                        <span class="material-icons">auto_awesome</span><span>AI</span>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Column 2: header + page -->
+            <div class="settings-pane">
+                <div class="settings-pane-header">
+                    <span class="settings-pane-title" id="settingsPaneTitle">Appearance</span>
+                    <button class="btn btn--icon" id="closeSettingsModal"
+                            title="Close" aria-label="Close">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+
+                <div class="settings-pane-content">
+
+                    <!-- ---- Appearance ---- -->
+                    <div class="settings-page active" id="appearancePage"
+                         role="tabpanel">
+                        <div class="pane-body">
+                            <div class="appearance-label" id="themeLabel">Theme</div>
+                            <div class="theme-grid" id="themeGrid" role="group"
+                                 aria-labelledby="themeLabel"></div>
+
+                            <div class="appearance-label">Terminal font</div>
+                            <div class="form-grid-2">
+                                <div class="form-row">
+                                    <label for="fontSelect">Family</label>
+                                    <select id="fontSelect"></select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="fontSizeInput">Size (px)</label>
+                                    <input id="fontSizeInput" type="number"
+                                           min="9" max="24" step="0.5"/>
+                                </div>
+                            </div>
+                            <div class="font-preview" id="fontPreview"
+                                 aria-hidden="true"></div>
+
+                            <div class="appearance-label">Performance</div>
+                            <label class="toggle-row">
+                                <span class="toggle-text">
+                                    <span class="toggle-title">Performance mode</span>
+                                    <span class="form-hint">
+                                        Disables blur and translucency for faster
+                                        rendering. Recommended on VDI or machines
+                                        without a GPU.
+                                    </span>
+                                </span>
+                                <input type="checkbox" id="perfModeInput" class="switch"/>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- ---- Connectors ---- -->
+                    <div class="settings-page" id="connectorsPage" role="tabpanel">
+                        <div class="pane-toolbar">
+                            <input id="connSearch" type="text"
+                                   placeholder="Filter connectors…"
+                                   aria-label="Filter connectors"/>
+                            <button class="btn btn--ghost" id="connRefresh"
+                                    title="Refresh">
+                                <span class="material-icons">refresh</span>Refresh
+                            </button>
+                            <button class="btn btn--primary" id="connAddBtn"
+                                    title="Add connector">
+                                <span class="material-icons">add_link</span>Add
+                            </button>
+                        </div>
+                        <div class="pane-body">
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th scope="col">Name</th>
+                                    <th scope="col" class="col-type">Type</th>
+                                    <th scope="col" class="col-actions">Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody id="connBody">
+                                <tr>
+                                    <td colspan="3" class="table-empty">
+                                        No connectors yet
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ---- AI ---- -->
+                    <div class="settings-page" id="aiPage" role="tabpanel">
+                        <div class="pane-body">
+                            <label class="toggle-row" style="margin-bottom:18px;">
+                                <span class="toggle-text">
+                                    <span class="toggle-title">Enable AI features</span>
+                                    <span class="form-hint">
+                                        Adds an interactive Assistant that reads your
+                                        live session output and can propose read-only
+                                        commands for you to approve. Session output is
+                                        sent to the provider you configure below.
+                                    </span>
+                                </span>
+                                <input type="checkbox" id="aiEnabled" class="switch"/>
+                            </label>
+
+                            <div class="form-row">
+                                <label for="aiProvider">Provider</label>
+                                <select id="aiProvider">
+                                    <option value="">— Select provider —</option>
+                                </select>
+                                <span class="form-hint" id="aiProviderHint"></span>
+                                <div class="form-hint" id="aiCapabilityNote"></div>
+                            </div>
+
+                            <fieldset class="form-group" id="aiConfigGroup">
+                                <legend class="form-group-title">
+                                    <span class="material-icons i-16">tune</span>Connection
+                                </legend>
+                                <div id="aiConfigFields"></div>
+                            </fieldset>
+
+                            <div class="test-row" style="margin-top:14px;">
+                                <button type="button" class="btn btn--ghost" id="aiTestBtn">
+                                    <span class="material-icons">wifi_tethering</span>Test
+                                </button>
+                                <button type="button" class="btn btn--primary" id="aiSaveBtn">
+                                    <span class="material-icons">save</span>Save
+                                </button>
+                            </div>
+                            <div class="test-result" id="aiTestResult"
+                                 role="status" aria-live="polite"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ===================================================================== -->
+<!-- Add / Edit Connector modal                                            -->
+<!-- ===================================================================== -->
+<div class="modal-overlay" id="connModal">
+    <div class="modal" style="width:560px;" role="dialog" aria-modal="true"
+         aria-labelledby="connModalTitle">
+        <div class="modal-header">
+            <div class="modal-title" id="connModalTitle">Add Connector</div>
+            <button class="btn btn--icon" id="closeConnModal"
+                    title="Close" aria-label="Close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <form id="connForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <label for="connName">Connector name</label>
+                    <input id="connName" type="text" required
+                           placeholder="e.g. core-lab"/>
+                </div>
+
+                <!-- Device credentials -->
+                <fieldset class="form-group">
+                    <legend class="form-group-title">
+                        <span class="material-icons i-16">tv</span>Device credentials
+                    </legend>
+                    <div class="form-grid-2">
+                        <div class="form-row">
+                            <label for="connNetUser">Username</label>
+                            <input id="connNetUser" type="text" autocomplete="off"/>
+                        </div>
+                        <div class="form-row">
+                            <label for="connNetPass">Password</label>
+                            <input id="connNetPass" type="password"
+                                   autocomplete="new-password"
+                                   placeholder="Blank = keep existing"/>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Jump host -->
+                <fieldset class="form-group">
+                    <legend class="form-group-title">
+                        <span class="material-icons i-16">alt_route</span>Jump host
+                        <span class="form-group-badge">optional</span>
+                    </legend>
+                    <div class="form-row">
+                        <label for="connJumpIp">Jump host IP / hostname</label>
+                        <input id="connJumpIp" type="text" autocomplete="off"/>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-row">
+                            <label for="connJumpUser">Username</label>
+                            <input id="connJumpUser" type="text" autocomplete="off"/>
+                        </div>
+                        <div class="form-row">
+                            <label for="connJumpPass">Password</label>
+                            <input id="connJumpPass" type="password"
+                                   autocomplete="new-password"
+                                   placeholder="Blank = keep existing"/>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Platform -->
+                <fieldset class="form-group">
+                    <legend class="form-group-title">
+                        <span class="material-icons i-16">tune</span>Platform
+                    </legend>
+                    <div class="form-grid-2">
+                        <div class="form-row">
+                            <label for="connDeviceType">Device type</label>
+                            <select id="connDeviceType">
+                                <option value="">Auto-detect</option>
+                                <option value="cisco_ios">Cisco IOS</option>
+                                <option value="cisco_nxos">Cisco NX-OS</option>
+                                <option value="cisco_xr">Cisco IOS-XR</option>
+                                <option value="cisco_asa">Cisco ASA</option>
+                                <option value="cisco_wlc">Cisco WLC</option>
+                                <option value="juniper_junos">Juniper Junos</option>
+                                <option value="arista_eos">Arista EOS</option>
+                                <option value="hp_comware">HP Comware</option>
+                                <option value="hp_procurve">HP ProCurve</option>
+                                <option value="paloalto_panos">Palo Alto PAN-OS</option>
+                                <option value="fortinet">Fortinet</option>
+                                <option value="f5_tmsh">F5 TMSH</option>
+                                <option value="linux">Linux / Unix</option>
+                            </select>
+                            <span class="form-hint">
+                                Setting this skips detection — faster and more reliable.
+                            </span>
+                        </div>
+                        <div class="form-row">
+                            <label for="connSshOptions">SSH options (jump host)</label>
+                            <input id="connSshOptions" type="text" autocomplete="off"
+                                   placeholder="-oKexAlgorithms=+diffie-hellman-group1-sha1"/>
+                            <span class="form-hint">
+                                Extra flags for the jump host's ssh command. Not used
+                                for direct connections.
+                            </span>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Test connection -->
+                <fieldset class="form-group">
+                    <legend class="form-group-title">
+                        <span class="material-icons i-16">wifi_tethering</span>Test connection
+                    </legend>
+                    <div class="form-row">
+                        <label for="connTestHost">Test against host</label>
+                        <input id="connTestHost" type="text" autocomplete="off"
+                               placeholder="hostname/IP to test with these credentials"/>
+                    </div>
+                    <div class="test-row">
+                        <button type="button" class="btn btn--ghost" id="connTestBtn">
+                            <span class="material-icons">wifi_tethering</span>Test connection
+                        </button>
+                        <div class="test-result" id="connTestResult"
+                             role="status" aria-live="polite"></div>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--ghost" id="cancelConnModal">Cancel</button>
+                <button type="submit" class="btn btn--primary">
+                    <span class="material-icons">save</span>Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ===================================================================== -->
+<!-- Logs modal                                                            -->
+<!-- ===================================================================== -->
+<div class="modal-overlay" id="logsModal">
+    <div class="modal" style="width:1000px; height:76vh;" role="dialog"
+         aria-modal="true" aria-labelledby="logsTitle">
+        <div class="modal-header">
+            <div class="modal-title" id="logsTitle">Session Logs</div>
+            <button class="btn btn--icon" id="closeLogsModal"
+                    title="Close" aria-label="Close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div class="pane-toolbar">
+            <input id="logsSearch" type="text" placeholder="Filter logs…"
+                   aria-label="Filter logs"/>
+            <button class="btn btn--ghost" id="logsOpenFolder"
+                    title="Open log folder">
+                <span class="material-icons">folder_open</span>Folder
+            </button>
+            <button class="btn btn--ghost" id="logsRefresh" title="Refresh">
+                <span class="material-icons">refresh</span>Refresh
+            </button>
+            <button class="btn btn--danger" id="logsDeleteAll"
+                    title="Delete all shown">
+                <span class="material-icons">delete_sweep</span>Delete All
+            </button>
+        </div>
+        <div class="modal-body" style="padding:0; flex:1; min-height:0;">
+            <div class="pane-body">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th scope="col">Filename</th>
+                        <th scope="col">Date Created</th>
+                        <th scope="col" class="col-actions">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="logsBody">
+                    <tr>
+                        <td colspan="3" class="table-empty">No logs yet</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content: flex-end;">
+            <span class="form-hint" id="logsFootHint"></span>
+        </div>
+    </div>
+</div>
+
+
+<!-- ===================================================================== -->
+<!-- View Log modal                                                        -->
+<!-- ===================================================================== -->
+<div class="modal-overlay" id="viewLogModal">
+    <div class="modal" style="width:80vw; max-width:1100px;" role="dialog"
+         aria-modal="true" aria-labelledby="viewLogTitle">
+        <div class="modal-header">
+            <div class="modal-title" id="viewLogTitle">Log</div>
+            <button class="btn btn--icon" id="closeViewLogModal"
+                    title="Close" aria-label="Close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <pre id="viewLogContent" tabindex="0"
+                 style="max-height:70vh; overflow:auto; white-space:pre-wrap; margin:0;
+                        font-family:var(--font-mono); font-size:var(--font-size-sm);"></pre>
+        </div>
+    </div>
+</div>
+
+
+<!-- ===================================================================== -->
+<!-- AI disclaimer                                                         -->
+<!-- ===================================================================== -->
+<div class="modal-overlay" id="aiDisclaimerModal">
+    <div class="modal ai-disclaimer" style="width:560px;" role="dialog"
+         aria-modal="true" aria-labelledby="aiDisclaimerTitle">
+        <div class="ai-disclaimer-body">
+            <div class="ai-disclaimer-title" id="aiDisclaimerTitle">
+                <span class="material-icons">privacy_tip</span>
+                Before enabling the Assistant
+            </div>
+            <p>
+                The Assistant reads your live session output and can
+                <strong>propose commands to run on your devices</strong>.
+                Please read this carefully — it is not the same as a chat window.
+            </p>
+            <ul>
+                <li><strong>Session output is sent</strong> to the provider you
+                    configure. Passwords, keys, community strings and
+                    certificates are <strong>masked</strong> first; hostnames,
+                    IPs, interface names, configuration and command output are
+                    <strong>sent as-is</strong>.
+                </li>
+                <li><strong>Nothing runs without your approval.</strong> Every
+                    command is shown to you first, per device, and you can edit
+                    or reject it.
+                </li>
+                <li><strong>Only read-only commands are permitted.</strong>
+                    Configuration changes, reloads, clears and file operations
+                    are refused by Terminus before you are even asked.
+                </li>
+                <li>Command output is <strong>sent back</strong> to the provider
+                    so it can answer. Every command it runs is written to your
+                    session log.
+                </li>
+                <li>Choose a provider your organisation permits, and use a
+                    capable model — small models propose wrong commands.
+                </li>
+                <li><strong>Model output can be wrong.</strong> You remain
+                    responsible for what runs on your infrastructure.
+                </li>
+            </ul>
+            <div class="ai-disclaimer-actions">
+                <button type="button" class="btn btn--ghost" id="aiDeclineBtn">Cancel</button>
+                <button type="button" class="btn btn--primary" id="aiAcceptBtn">
+                    <span class="material-icons">check_circle</span>Accept
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ===== Toast ===== -->
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+
+<!-- ===================================================================== -->
+<!-- Scripts                                                               -->
+<!--                                                                       -->
+<!-- Everything is vendored: this is a local-first tool that holds device   -->
+<!-- credentials in memory, so it must work offline and must not fetch      -->
+<!-- executable code from a third party at runtime.                         -->
+<!--                                                                       -->
+<!-- Load order matters — there is no module system. core.js creates the TW -->
+<!-- namespace; every later file extends it.                                -->
+<!-- ===================================================================== -->
+<script src="{{ url_for('static', filename='js/vendor/xterm.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendor/xterm-addon-fit.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
+
+<!-- marked parses, DOMPurify sanitises. Both are required — marked passes raw
+     HTML through by design, and what we render is model output containing
+     device data. -->
+<script src="{{ url_for('static', filename='js/vendor/marked.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendor/purify.min.js') }}"></script>
+
+<!-- Regenerated every launch; the Socket.IO handshake requires it. -->
+<script>window.TERMINUS_TOKEN = {{ launch_token | tojson }};</script>
+
+<script src="{{ url_for('static', filename='js/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sessions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tools.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai.chat.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai.settings.js') }}"></script>
+
+<script>
+    /* Icon ligatures read as literal words to assistive tech. Marking them
+       decorative in one sweep is cheaper than annotating ~60 elements; JS that
+       creates icons later sets aria-hidden inline. */
+    document.querySelectorAll(".material-icons")
+        .forEach(el => el.setAttribute("aria-hidden", "true"));
+</script>
+</body>
+</html>
